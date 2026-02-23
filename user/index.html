@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Venzio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0F0F1A;
+            --bg-card: #1A1A2E;
+            --bg-surface: #16213E;
+            --primary: #6C63FF;
+            --primary-glow: rgba(108, 99, 255, 0.25);
+            --accent: #00D9FF;
+            --success: #00E676;
+            --error: #FF5252;
+            --text: #E8E8FF;
+            --text-muted: #8888AA;
+            --border: rgba(255, 255, 255, 0.07);
+            --radius: 12px;
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .btn-logout {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: var(--transition);
+        }
+
+        .btn-logout:hover {
+            border-color: var(--error);
+            color: var(--error);
+        }
+
+        /* Main */
+        .main {
+            padding: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .welcome {
+            margin-bottom: 32px;
+        }
+
+        .welcome h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .welcome p {
+            color: var(--text-muted);
+        }
+
+        /* Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card h2::before {
+            content: '';
+            width: 4px;
+            height: 18px;
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+        /* Profile Form */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg-surface);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #8B5CF6);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        /* Subscription Info */
+        .subscription-info {
+            background: linear-gradient(135deg, rgba(108, 99, 255, 0.1), rgba(0, 217, 255, 0.1));
+            border: 1px solid var(--primary);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .subscription-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: rgba(0, 230, 118, 0.2);
+            color: var(--success);
+        }
+
+        .status-expired {
+            background: rgba(255, 82, 82, 0.2);
+            color: var(--error);
+        }
+
+        /* Payments Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--text-muted);
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-weight: 500;
+        }
+
+        td {
+            padding: 12px;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+
+        /* Widget Section */
+        .widget-section {
+            text-align: center;
+        }
+
+        .widget-demo {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin: 16px 0;
+        }
+
+        .widget-demo p {
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .btn-secondary {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">Venzio</div>
+        <div class="user-info">
+            <div class="user-avatar" id="user-avatar">U</div>
+            <span id="user-email">usuario@email.com</span>
+            <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="main">
+        <div class="welcome">
+            <h1 id="welcome-message">Bienvenido a tu dashboard</h1>
+            <p>Gestiona tu perfil, revisa tus pagos y accede a tu agente de voz.</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Profile Section -->
+            <div>
+                <div class="card">
+                    <h2>Mi Perfil</h2>
+                    <form id="profile-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Nombre completo</label>
+                                <input type="text" id="full_name" />
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <input type="tel" id="phone" />
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Empresa</label>
+                                <input type="text" id="company_name" />
+                            </div>
+                            <div class="form-group">
+                                <label>Sitio web</label>
+                                <input type="url" id="website" placeholder="https://" />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-primary">Actualizar perfil</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>Historial de Pagos</h2>
+                    <div id="payments-container">
+                        <div class="empty">Cargando pagos...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div>
+                <div class="subscription-info" id="subscription-info">
+                    <div class="subscription-status">
+                        <span class="status-badge status-active">Activa</span>
+                    </div>
+                    <p id="subscription-text">Suscripción activa hasta: --</p>
+                </div>
+
+                <div class="card widget-section">
+                    <h2>Agente de Voz</h2>
+                    <div class="widget-demo">
+                        <p>Accede a tu agente de voz personalizado integrado en tu sitio web.</p>
+                        <button class="btn-secondary" onclick="openWidget()">Ver demo del widget</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let userData = null;
+
+        // Check authentication
+        const token = localStorage.getItem('venzio_token');
+        if (!token) {
+            window.location.href = '/login/';
+        }
+
+        // Load user data
+        async function loadUserData() {
+            try {
+                const response = await fetch(`${API_BASE}/users/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    userData = await response.json();
+                    populateProfile(userData);
+                    updateUI(userData);
+                } else {
+                    logout();
+                }
+            } catch (e) {
+                console.error('Error loading user data:', e);
+                logout();
+            }
+        }
+
+        // Populate profile form
+        function populateProfile(user) {
+            document.getElementById('full_name').value = user.full_name || '';
+            document.getElementById('phone').value = user.phone || '';
+            document.getElementById('company_name').value = user.company_name || '';
+            document.getElementById('website').value = user.website || '';
+            document.getElementById('user-email').textContent = user.email;
+            document.getElementById('user-avatar').textContent = user.email[0].toUpperCase();
+            document.getElementById('welcome-message').textContent = `Bienvenido, ${user.full_name || user.email.split('@')[0]}`;
+        }
+
+        // Update subscription UI
+        function updateUI(user) {
+            const subscriptionEl = document.getElementById('subscription-info');
+            const statusEl = subscriptionEl.querySelector('.status-badge');
+            const textEl = document.getElementById('subscription-text');
+
+            if (user.subscription_end_date) {
+                const endDate = new Date(user.subscription_end_date);
+                const now = new Date();
+                const isActive = endDate > now;
+
+                statusEl.className = `status-badge ${isActive ? 'status-active' : 'status-expired'}`;
+                statusEl.textContent = isActive ? 'Activa' : 'Expirada';
+                textEl.textContent = `Suscripción ${isActive ? 'activa' : 'expirada'} hasta: ${endDate.toLocaleDateString()}`;
+            } else {
+                statusEl.className = 'status-badge status-expired';
+                statusEl.textContent = 'Sin suscripción';
+                textEl.textContent = 'No tienes una suscripción activa';
+            }
+        }
+
+        // Load payments
+        async function loadPayments() {
+            try {
+                const response = await fetch(`${API_BASE}/users/me/payments`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const payments = await response.json();
+                    const container = document.getElementById('payments-container');
+
+                    if (!payments.length) {
+                        container.innerHTML = '<div class="empty">No hay pagos registrados.</div>';
+                        return;
+                    }
+
+                    container.innerHTML = `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Monto</th>
+                                    <th>Días</th>
+                                    <th>Descripción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${payments.map(p => `
+                                    <tr>
+                                        <td>${new Date(p.payment_date).toLocaleDateString()}</td>
+                                        <td><strong>$${p.amount}</strong></td>
+                                        <td>${p.days_added}</td>
+                                        <td>${p.description}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+            } catch (e) {
+                console.error('Error loading payments:', e);
+            }
+        }
+
+        // Update profile
+        document.getElementById('profile-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const data = {
+                full_name: document.getElementById('full_name').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                company_name: document.getElementById('company_name').value.trim(),
+                website: document.getElementById('website').value.trim(),
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/users/me`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    alert('Perfil actualizado exitosamente');
+                    loadUserData();
+                } else {
+                    alert('Error al actualizar perfil');
+                }
+            } catch (e) {
+                console.error('Error updating profile:', e);
+                alert('Error al actualizar perfil');
+            }
+        });
+
+        // Open widget demo
+        function openWidget() {
+            window.open('/widget/', '_blank');
+        }
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('venzio_token');
+            window.location.href = '/login/';
+        }
+
+        // Load data on page load
+        loadUserData();
+        loadPayments();
+    </script>
+</body>
+
+</html>
