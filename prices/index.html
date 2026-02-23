@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Planes y Precios - Venzio</title>
+    <meta name="description" content="Planes y precios de Venzio – agente vendedor por voz con IA." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0F0F1A;
+            --bg-card: #1A1A2E;
+            --bg-surface: #16213E;
+            --primary: #6C63FF;
+            --primary-glow: rgba(108, 99, 255, 0.25);
+            --accent: #00D9FF;
+            --success: #00E676;
+            --error: #FF5252;
+            --text: #E8E8FF;
+            --text-muted: #8888AA;
+            --border: rgba(255, 255, 255, 0.07);
+            --radius: 12px;
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(15, 15, 26, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            z-index: 1000;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 70px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav {
+            display: flex;
+            gap: 32px;
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: var(--primary);
+        }
+
+        .auth-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-outline {
+            border: 1px solid var(--border);
+            background: none;
+            color: var(--text);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #8B5CF6);
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px var(--primary-glow);
+        }
+
+        /* Main */
+        .main {
+            margin-top: 70px;
+            padding: 80px 20px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 20px;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Plans */
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 32px;
+            margin: 40px 0;
+        }
+
+        .plan-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 32px;
+            text-align: center;
+            position: relative;
+            transition: var(--transition);
+        }
+
+        .plan-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .plan-card.popular {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .plan-badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .plan-name {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .plan-price {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .plan-price span {
+            font-size: 16px;
+            color: var(--text-muted);
+        }
+
+        .plan-features {
+            list-style: none;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .plan-features li {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .plan-features li::before {
+            content: "✓";
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        /* FAQ */
+        .faq {
+            margin-top: 80px;
+        }
+
+        .faq h2 {
+            text-align: center;
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+
+        .faq p {
+            text-align: center;
+            color: var(--text-muted);
+            margin-bottom: 40px;
+        }
+
+        .faq-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+        }
+
+        .faq-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+        }
+
+        .faq-item h3 {
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+
+        .faq-item p {
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* CTA */
+        .cta {
+            text-align: center;
+            margin-top: 80px;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, rgba(108, 99, 255, 0.1), rgba(0, 217, 255, 0.1));
+            border-radius: var(--radius);
+        }
+
+        .cta h2 {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+
+        .cta p {
+            font-size: 18px;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .plans-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero h1 {
+                font-size: 32px;
+            }
+
+            .faq-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">Venzio</div>
+            <nav class="nav">
+                <a href="/" class="nav-link">Inicio</a>
+                <a href="/prices/" class="nav-link active">Planes</a>
+                <a href="/contact/" class="nav-link">Contacto</a>
+            </nav>
+            <div class="auth-buttons">
+                <a href="/login/" class="btn btn-outline">Iniciar Sesión</a>
+                <a href="/register/" class="btn btn-primary">Registrarse</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="main">
+        <div class="hero">
+            <h1>Planes y Precios</h1>
+            <p>Elige el plan perfecto para tu negocio. Todos los planes incluyen soporte técnico completo.</p>
+        </div>
+
+        <div class="plans-grid" id="plans-container">
+            <!-- Plans loaded via JavaScript -->
+        </div>
+
+        <!-- FAQ -->
+        <section class="faq">
+            <h2>Preguntas Frecuentes</h2>
+            <p>Resolvemos tus dudas sobre nuestros planes y servicios.</p>
+
+            <div class="faq-grid">
+                <div class="faq-item">
+                    <h3>¿Puedo cambiar de plan en cualquier momento?</h3>
+                    <p>Sí, puedes actualizar o cambiar tu plan en cualquier momento desde tu dashboard. Los cambios se aplican inmediatamente.</p>
+                </div>
+                <div class="faq-item">
+                    <h3>¿Qué incluye el soporte técnico?</h3>
+                    <p>Todos los planes incluyen soporte técnico completo por email y chat. Los planes Pro y superiores incluyen soporte prioritario.</p>
+                </div>
+                <div class="faq-item">
+                    <h3>¿Hay límite de minutos por conversación?</h3>
+                    <p>No hay límite por conversación individual. Solo se cuenta el total de minutos usados por mes según tu plan.</p>
+                </div>
+                <div class="faq-item">
+                    <h3>¿Puedo cancelar mi suscripción?</h3>
+                    <p>Sí, puedes cancelar tu suscripción en cualquier momento desde tu dashboard. Seguirás teniendo acceso hasta el final del período pagado.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA -->
+        <div class="cta">
+            <h2>¿Listo para comenzar?</h2>
+            <p>Regístrate gratis y prueba Venzio durante 30 días sin compromiso.</p>
+            <a href="/register/" class="btn btn-primary" style="font-size: 16px; padding: 12px 24px;">Comenzar Gratis</a>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        // Load plans
+        async function loadPlans() {
+            try {
+                const response = await fetch(`${API_BASE}/api/plans`);
+                const plans = await response.json();
+                const container = document.getElementById('plans-container');
+
+                container.innerHTML = plans.map(plan => `
+                    <div class="plan-card">
+                        <div class="plan-name">${plan.name}</div>
+                        <div class="plan-price">$${plan.price}<span>/mes</span></div>
+                        <ul class="plan-features">
+                            <li>${plan.max_sessions} sesiones simultáneas</li>
+                            <li>${plan.max_minutes} minutos por mes</li>
+                            <li>Soporte técnico completo</li>
+                            <li>Actualizaciones gratuitas</li>
+                            <li>Configuración personalizada</li>
+                        </ul>
+                        <a href="/register/" class="btn btn-primary" style="margin-top: 20px;">Seleccionar Plan</a>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Error loading plans:', e);
+                // Fallback plans
+                document.getElementById('plans-container').innerHTML = `
+                    <div class="plan-card">
+                        <div class="plan-name">Gratuito</div>
+                        <div class="plan-price">$0<span>/mes</span></div>
+                        <ul class="plan-features">
+                            <li>2 sesiones simultáneas</li>
+                            <li>30 minutos por mes</li>
+                            <li>Soporte básico</li>
+                            <li>Actualizaciones gratuitas</li>
+                        </ul>
+                        <a href="/register/" class="btn btn-primary" style="margin-top: 20px;">Comenzar Gratis</a>
+                    </div>
+                    <div class="plan-card popular">
+                        <div class="plan-badge">Más Popular</div>
+                        <div class="plan-name">Básico</div>
+                        <div class="plan-price">$29<span>/mes</span></div>
+                        <ul class="plan-features">
+                            <li>5 sesiones simultáneas</li>
+                            <li>120 minutos por mes</li>
+                            <li>Soporte prioritario</li>
+                            <li>Configuración personalizada</li>
+                        </ul>
+                        <a href="/register/" class="btn btn-primary" style="margin-top: 20px;">Seleccionar Plan</a>
+                    </div>
+                    <div class="plan-card">
+                        <div class="plan-name">Pro</div>
+                        <div class="plan-price">$99<span>/mes</span></div>
+                        <ul class="plan-features">
+                            <li>20 sesiones simultáneas</li>
+                            <li>600 minutos por mes</li>
+                            <li>Soporte 24/7</li>
+                            <li>API dedicada</li>
+                        </ul>
+                        <a href="/register/" class="btn btn-primary" style="margin-top: 20px;">Seleccionar Plan</a>
+                    </div>
+                `;
+            }
+        }
+
+        // Load plans on page load
+        loadPlans();
+    </script>
+</body>
+
+</html>
