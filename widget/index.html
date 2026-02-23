@@ -9,6 +9,93 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Header */
+    .header {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      background: rgba(15, 15, 26, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      z-index: 1000;
+    }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 70px;
+    }
+
+    .logo {
+      font-size: 24px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #6C63FF, #00D9FF);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav {
+      display: flex;
+      gap: 32px;
+    }
+
+    .nav-link {
+      color: #8888AA;
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+      color: #6C63FF;
+    }
+
+    .auth-buttons {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-outline {
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      background: none;
+      color: #E8E8FF;
+    }
+
+    .btn-outline:hover {
+      border-color: #6C63FF;
+      color: #6C63FF;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #6C63FF, #8B5CF6);
+      color: white;
+      border: none;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(108, 99, 255, 0.25);
+    }
+
     body {
       font-family: 'Inter', sans-serif;
       background: #0F0F1A;
@@ -21,6 +108,7 @@
       text-align: center;
       padding: 24px;
       overflow-x: hidden;
+      margin-top: 70px; /* Account for fixed header */
     }
 
     /* Gradient background blobs */
@@ -130,6 +218,22 @@
   </style>
 </head>
 <body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">Venzio</div>
+      <nav class="nav">
+        <a href="/" class="nav-link">Inicio</a>
+        <a href="/#planes" class="nav-link">Planes</a>
+        <a href="/#contacto" class="nav-link">Contacto</a>
+      </nav>
+      <div class="auth-buttons">
+        <a href="/login/" class="btn btn-outline">Iniciar Sesión</a>
+        <a href="/register/" class="btn btn-primary">Registrarse</a>
+      </div>
+    </div>
+  </header>
+
   <div class="hero">
     <div class="badge">
       <span class="badge-dot"></span>
