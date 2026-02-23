@@ -29,7 +29,12 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    company_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    website: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    master_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     plan_id: Mapped[Optional[int]] = mapped_column(ForeignKey("plans.id"), nullable=True)
+    subscription_end_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
@@ -37,6 +42,7 @@ class User(Base):
     plan: Mapped[Optional["Plan"]] = relationship("Plan", back_populates="users")
     sessions: Mapped[list["VoiceSession"]] = relationship("VoiceSession", back_populates="user")
     usage_logs: Mapped[list["UsageLog"]] = relationship("UsageLog", back_populates="user")
+    payments: Mapped[list["Payment"]] = relationship("Payment", back_populates="user")
 
 
 class Voice(Base):
@@ -82,3 +88,20 @@ class UsageLog(Base):
     sessions_count: Mapped[int] = mapped_column(Integer, default=0)
 
     user: Mapped["User"] = relationship("User", back_populates="usage_logs")
+
+
+class Payment(Base):
+    """Historial de pagos para gestión de suscripciones."""
+    __tablename__ = "payments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    days_added: Mapped[int] = mapped_column(Integer, nullable=False)
+    payment_date: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    description: Mapped[str] = mapped_column(String(200), nullable=False)
+    plan_id: Mapped[Optional[int]] = mapped_column(ForeignKey("plans.id"), nullable=True)
+    created_by: Mapped[int] = mapped_column(Integer, nullable=False)  # admin user id
+
+    user: Mapped["User"] = relationship("User", back_populates="payments")
+    plan: Mapped[Optional["Plan"]] = relationship("Plan")

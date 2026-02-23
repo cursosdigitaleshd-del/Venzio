@@ -66,3 +66,22 @@ def get_current_admin(user: User = Depends(get_current_user)) -> User:
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Se requieren permisos de administrador")
     return user
+
+
+def get_current_user_optional(
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    if not token:
+        return None
+    try:
+        payload = decode_token(token)
+        user_id: Optional[int] = payload.get("sub")
+        if user_id is None:
+            return None
+        user = db.get(User, int(user_id))
+        if not user or not user.is_active:
+            return None
+        return user
+    except HTTPException:
+        return None

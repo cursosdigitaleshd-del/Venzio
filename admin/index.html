@@ -678,6 +678,13 @@
                     </svg>
                     Planes
                 </div>
+                <div class="nav-item" data-tab="payments">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                        <line x1="1" y1="10" x2="23" y2="10" />
+                    </svg>
+                    Pagos
+                </div>
             </nav>
             <div class="sidebar-footer">
                 <div class="sidebar-user">
@@ -781,6 +788,19 @@
                     </div>
                 </div>
 
+                <!-- ── PAYMENTS TAB ───────────────────────────────────────── -->
+                <div class="tab-content" id="tab-payments">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Pagos</h2>
+                            <button class="btn-sm primary" onclick="loadPayments()">↻ Actualizar</button>
+                        </div>
+                        <div id="payments-container">
+                            <div class="empty">Cargando pagos...</div>
+                        </div>
+                    </div>
+                </div>
+
             </div><!-- /content -->
         </main>
     </div><!-- /app -->
@@ -845,6 +865,41 @@
                 <button class="btn-cancel" onclick="closeModal('plan')">Cancelar</button>
                 <button class="btn-primary" style="width:auto;padding:10px 24px;" onclick="createPlan()">Crear
                     plan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── MODAL: Register Payment ────────────────────────────────────────────── -->
+    <div class="modal-overlay" id="modal-payment">
+        <div class="modal">
+            <h2 id="payment-modal-title">Registrar pago</h2>
+            <div class="form-group">
+                <label>Usuario</label>
+                <input type="text" id="pay-user" readonly />
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Monto (USD)</label>
+                    <input type="number" id="pay-amount" step="0.01" min="0" />
+                </div>
+                <div class="form-group">
+                    <label>Días a agregar</label>
+                    <select id="pay-days">
+                        <option value="30">30 días</option>
+                        <option value="60">60 días</option>
+                        <option value="90">90 días</option>
+                        <option value="180">180 días</option>
+                        <option value="360">360 días</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Descripción</label>
+                <input type="text" id="pay-description" placeholder="Pago mensual" />
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('payment')">Cancelar</button>
+                <button class="btn-primary" style="width:auto;padding:10px 24px;" onclick="registerPayment()">Registrar pago</button>
             </div>
         </div>
     </div>
@@ -915,6 +970,7 @@
             loadVoices();
             loadUsers();
             loadPlans();
+            loadPayments();
         }
 
         // Auto-login if token exists
@@ -929,7 +985,7 @@
         }
 
         // ── Tab Navigation ────────────────────────────────────────────────────────────
-        const PAGE_TITLES = { stats: 'Dashboard', users: 'Usuarios', voices: 'Voces TTS', plans: 'Planes' };
+        const PAGE_TITLES = { stats: 'Dashboard', users: 'Usuarios', voices: 'Voces TTS', plans: 'Planes', payments: 'Pagos' };
         document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', () => {
                 document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
@@ -971,15 +1027,20 @@
                 const container = document.getElementById('users-container');
                 if (!users.length) { container.innerHTML = '<div class="empty">Sin usuarios registrados.</div>'; return; }
                 container.innerHTML = `<table>
-        <thead><tr><th>ID</th><th>Email</th><th>Rol</th><th>Estado</th><th>Plan</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>ID</th><th>Email</th><th>Nombre</th><th>Teléfono</th><th>Empresa</th><th>Sitio Web</th><th>Plan</th><th>Suscripción</th><th>Estado</th><th>Acciones</th></tr></thead>
         <tbody>${users.map(u => `
           <tr>
             <td style="color:var(--text-muted)">#${u.id}</td>
             <td>${u.email}</td>
-            <td><span class="badge ${u.is_admin ? 'badge-primary' : 'badge-muted'}">${u.is_admin ? 'Admin' : 'Usuario'}</span></td>
-            <td><span class="badge ${u.is_active ? 'badge-success' : 'badge-error'}">${u.is_active ? 'Activo' : 'Inactivo'}</span></td>
+            <td>${u.full_name || '<span style="color:var(--text-muted)">–</span>'}</td>
+            <td>${u.phone || '<span style="color:var(--text-muted)">–</span>'}</td>
+            <td>${u.company_name || '<span style="color:var(--text-muted)">–</span>'}</td>
+            <td>${u.website ? `<a href="${u.website}" target="_blank" style="color:var(--accent)">${u.website}</a>` : '<span style="color:var(--text-muted)">–</span>'}</td>
             <td>${u.plan_id ? `Plan #${u.plan_id}` : '<span style="color:var(--text-muted)">Sin plan</span>'}</td>
-            <td>
+            <td>${u.subscription_end_date ? new Date(u.subscription_end_date).toLocaleDateString() : '<span style="color:var(--text-muted)">–</span>'}</td>
+            <td><span class="badge ${u.is_active ? 'badge-success' : 'badge-error'}">${u.is_active ? 'Activo' : 'Inactivo'}</span></td>
+            <td style="display:flex;gap:8px;align-items:center;">
+              <button class="btn-sm primary" onclick="openPaymentModal(${u.id}, '${u.email}')">💳 Pago</button>
               <button class="btn-sm ${u.is_active ? 'danger' : 'success'}" onclick="toggleUser(${u.id})">${u.is_active ? 'Desactivar' : 'Activar'}</button>
             </td>
           </tr>`).join('')}
@@ -1095,6 +1156,54 @@
                 await apiFetch(`/plans/${id}`, { method: 'DELETE' });
                 toast('Plan desactivado', 'success');
                 loadPlans();
+            } catch (e) { toast(e.message, 'error'); }
+        }
+
+        // ── Payments ──────────────────────────────────────────────────────────────────
+        async function loadPayments() {
+            try {
+                const payments = await apiFetch('/admin/payments');
+                const container = document.getElementById('payments-container');
+                if (!payments.length) { container.innerHTML = '<div class="empty">Sin pagos registrados.</div>'; return; }
+                container.innerHTML = `<table>
+        <thead><tr><th>ID</th><th>Usuario</th><th>Monto</th><th>Días</th><th>Fecha</th><th>Descripción</th></tr></thead>
+        <tbody>${payments.map(p => `
+          <tr>
+            <td style="color:var(--text-muted)">#${p.id}</td>
+            <td>Usuario #${p.user_id}</td>
+            <td><strong>$${p.amount}</strong></td>
+            <td>${p.days_added} días</td>
+            <td>${new Date(p.payment_date).toLocaleDateString()}</td>
+            <td>${p.description}</td>
+          </tr>`).join('')}
+        </tbody></table>`;
+            } catch (e) { toast('Error cargando pagos: ' + e.message, 'error'); }
+        }
+
+        function openPaymentModal(userId, userEmail) {
+            document.getElementById('pay-user').value = userEmail;
+            document.getElementById('payment-modal-title').textContent = `Registrar pago para ${userEmail}`;
+            document.getElementById('pay-amount').value = '';
+            document.getElementById('pay-description').value = 'Pago mensual';
+            document.getElementById('modal-payment').classList.add('open');
+            // Store userId for later
+            document.getElementById('modal-payment').dataset.userId = userId;
+        }
+
+        async function registerPayment() {
+            const userId = document.getElementById('modal-payment').dataset.userId;
+            const payload = {
+                amount: parseFloat(document.getElementById('pay-amount').value),
+                days_added: parseInt(document.getElementById('pay-days').value),
+                description: document.getElementById('pay-description').value,
+            };
+            if (!payload.amount || payload.amount <= 0) { toast('Monto inválido', 'error'); return; }
+            try {
+                await apiFetch(`/admin/users/${userId}/payments`, { method: 'POST', body: JSON.stringify(payload) });
+                toast('Pago registrado exitosamente', 'success');
+                closeModal('payment');
+                loadUsers(); // Refresh users to show updated subscription
+                loadPayments(); // Refresh payments list
             } catch (e) { toast(e.message, 'error'); }
         }
 

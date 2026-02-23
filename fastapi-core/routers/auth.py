@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -23,12 +23,20 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     full_name: str | None = None
+    phone: str | None = None
+    company_name: str | None = None
+    website: str | None = None
 
 
 class UserOut(BaseModel):
     id: int
     email: str
     full_name: str | None
+    phone: str | None
+    company_name: str | None
+    website: str | None
+    plan_id: int | None
+    subscription_end_date: datetime | None
     is_active: bool
     is_admin: bool
 

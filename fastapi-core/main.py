@@ -21,6 +21,7 @@ from routers.admin import router as admin_router
 from routers.plans import router as plans_router
 from routers.voices import router as voices_router
 from routers.webhook import router as webhook_router
+from routers.users import router as users_router
 
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -162,6 +163,7 @@ app.include_router(admin_router)
 app.include_router(plans_router)
 app.include_router(voices_router)
 app.include_router(webhook_router)
+app.include_router(users_router)
 
 
 @app.get("/health", tags=["Sistema"])

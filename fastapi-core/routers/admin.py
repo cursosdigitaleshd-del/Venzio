@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from datetime import datetime, timedelta
 from auth import get_current_admin
 from concurrency import session_manager
 from database import get_db
-from models import Plan, User, Voice, VoiceSession, UsageLog
+from models import Payment, Plan, User, Voice, VoiceSession, UsageLog
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -15,9 +16,14 @@ class UserOut(BaseModel):
     id: int
     email: str
     full_name: str | None
+    phone: str | None
+    company_name: str | None
+    website: str | None
+    master_prompt: str | None
+    plan_id: int | None
+    subscription_end_date: datetime | None
     is_active: bool
     is_admin: bool
-    plan_id: int | None
     model_config = {"from_attributes": True}
 
 
@@ -46,6 +52,25 @@ class VoiceOut(BaseModel):
 
 class UpdateUserPlan(BaseModel):
     plan_id: int | None
+
+
+class RegisterPayment(BaseModel):
+    amount: float
+    days_added: int
+    description: str
+    plan_id: int | None = None
+
+
+class PaymentOut(BaseModel):
+    id: int
+    user_id: int
+    amount: float
+    days_added: int
+    payment_date: datetime
+    description: str
+    plan_id: int | None
+    created_by: int
+    model_config = {"from_attributes": True}
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
@@ -162,3 +187,45 @@ def delete_voice(
     db.delete(voice)
     db.commit()
     return {"ok": True}
+
+
+# ── Payments ──────────────────────────────────────────────────────────────────
+@router.post("/users/{user_id}/payments", response_model=PaymentOut, status_code=201)
+def register_payment(
+    user_id: int,
+    payload: RegisterPayment,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    # Calcular nueva fecha de fin de suscripción
+    current_end = user.subscription_end_date or datetime.now()
+    new_end = current_end + timedelta(days=payload.days_added)
+
+    # Crear registro de pago
+    payment = Payment(
+        user_id=user_id,
+        amount=payload.amount,
+        days_added=payload.days_added,
+        description=payload.description,
+        plan_id=payload.plan_id,
+        created_by=admin.id,
+    )
+    db.add(payment)
+
+    # Actualizar suscripción del usuario
+    user.subscription_end_date = new_end
+    db.commit()
+    db.refresh(payment)
+    return payment
+
+
+@router.get("/payments", response_model=list[PaymentOut])
+def list_all_payments(
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    return db.query(Payment).order_by(Payment.payment_date.desc()).all()

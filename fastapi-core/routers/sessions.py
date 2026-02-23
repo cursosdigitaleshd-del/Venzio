@@ -3,10 +3,11 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from loguru import logger
 from sqlalchemy.orm import Session
 
+from auth import decode_token
 from concurrency import session_manager
 from database import get_db
 from models import VoiceSession, Voice
@@ -19,6 +20,7 @@ router = APIRouter(tags=["Sesiones de Voz"])
 async def voice_session(
     websocket: WebSocket,
     voice_id: int,
+    authorization: str | None = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -34,6 +36,31 @@ async def voice_session(
     - Server responde: {"type": "error", "message": "..."} en caso de error
     """
     await websocket.accept()
+
+    # Parsear usuario opcional desde header Authorization
+    user = None
+    master_prompt = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]  # Remove "Bearer "
+        try:
+            payload = decode_token(token)
+            user_id = payload.get("sub")
+            if user_id:
+                user = db.get(User, int(user_id))
+                if user and user.is_active:
+                    # Verificar suscripción activa
+                    now = datetime.now(timezone.utc)
+                    if user.subscription_end_date and user.subscription_end_date.replace(tzinfo=timezone.utc) > now:
+                        master_prompt = user.master_prompt
+                        db_session.user_id = user.id
+                    else:
+                        await websocket.send_text(json.dumps({"type": "error", "message": "Suscripción expirada. Contacte soporte."}))
+                        await websocket.close()
+                        return
+                else:
+                    user = None
+        except Exception:
+            pass  # Invalid token, continue as anonymous
 
     # Buscar voz en DB
     voice = db.get(Voice, voice_id)
@@ -112,7 +139,7 @@ async def voice_session(
 
                 # 2. LLM – Respuesta
                 conversation_history.append({"role": "user", "content": user_text})
-                reply_text = await llm.chat_completion(conversation_history)
+                reply_text = await llm.chat_completion(conversation_history, system_prompt=master_prompt)
                 conversation_history.append({"role": "assistant", "content": reply_text})
                 full_transcript_parts.append(f"Agente: {reply_text}")
 
