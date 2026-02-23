@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Venzio – Demo Agente de Voz</title>
+  <meta name="description" content="Demo del widget de voz de Venzio – agente vendedor con IA." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0F0F1A;
+      color: #E8E8FF;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+
+    /* Gradient background blobs */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(108,99,255,0.15), transparent);
+      top: -100px; left: -100px;
+    }
+    body::after {
+      width: 350px; height: 350px;
+      background: radial-gradient(circle, rgba(0,217,255,0.1), transparent);
+      bottom: -80px; right: -80px;
+    }
+
+    .hero { position: relative; z-index: 1; max-width: 640px; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 14px; border-radius: 100px;
+      background: rgba(108,99,255,0.15);
+      border: 1px solid rgba(108,99,255,0.3);
+      font-size: 12px; font-weight: 600;
+      color: #6C63FF; margin-bottom: 24px;
+      letter-spacing: 0.5px;
+    }
+    .badge-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #6C63FF;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    h1 {
+      font-size: clamp(32px, 5vw, 56px);
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+    h1 span {
+      background: linear-gradient(135deg, #6C63FF, #00D9FF);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 18px; color: #8888AA; line-height: 1.6;
+      margin-bottom: 40px; max-width: 480px; margin-left: auto; margin-right: auto;
+    }
+
+    .feature-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 16px; margin-bottom: 48px;
+    }
+    .feature-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px; padding: 20px 16px;
+      transition: border-color 0.2s;
+    }
+    .feature-card:hover { border-color: rgba(108,99,255,0.3); }
+    .feature-icon { font-size: 28px; margin-bottom: 8px; }
+    .feature-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .feature-card p { font-size: 12px; color: #8888AA; line-height: 1.4; }
+
+    .api-url {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px; padding: 10px 16px;
+      font-size: 13px; color: #8888AA;
+      font-family: 'Courier New', monospace;
+      margin-bottom: 16px;
+    }
+    .api-url strong { color: #6C63FF; }
+
+    .hint {
+      font-size: 13px; color: #8888AA;
+      animation: float 3s ease-in-out infinite;
+    }
+    .hint span { color: #6C63FF; font-weight: 600; }
+    @keyframes float {
+      0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)}
+    }
+
+    .tech-stack {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      justify-content: center; margin-top: 48px;
+    }
+    .tech-pill {
+      padding: 4px 12px; border-radius: 20px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 11px; color: #8888AA;
+    }
+
+    @media (max-width: 520px) {
+      .feature-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="badge">
+      <span class="badge-dot"></span>
+      Demo en vivo
+    </div>
+
+    <h1>Tu <span>Agente Vendedor</span><br/>por Voz con IA</h1>
+
+    <p class="subtitle">
+      Habla directamente con el agente de ventas. Usa el widget en la esquina inferior derecha para iniciar una conversación.
+    </p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🎙</div>
+        <h3>STT en Español</h3>
+        <p>Transcripción en tiempo real con Whisper</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🧠</div>
+        <h3>GPT-4o mini</h3>
+        <p>Respuestas inteligentes y contextuales</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔊</div>
+        <h3>Voz Natural</h3>
+        <p>Síntesis de voz fluida con Piper TTS</p>
+      </div>
+    </div>
+
+    <div class="api-url">
+      API: <strong id="api-url-display">http://localhost:8000</strong>
+    </div>
+
+    <p class="hint">
+      Presiona el botón <span>🎤</span> para comenzar
+    </p>
+
+    <div class="tech-stack">
+      <span class="tech-pill">FastAPI</span>
+      <span class="tech-pill">faster-whisper</span>
+      <span class="tech-pill">Piper TTS</span>
+      <span class="tech-pill">GPT-4o mini</span>
+      <span class="tech-pill">WebRTC</span>
+      <span class="tech-pill">WebSocket</span>
+      <span class="tech-pill">Docker</span>
+    </div>
+  </div>
+
+  <!-- Venzio Widget -->
+  <link rel="stylesheet" href="./widget.css" />
+  <script>
+    window.VENZIO_API = 'http://localhost:8000';
+    window.VENZIO_WS  = 'ws://localhost:8000';
+    window.VENZIO_NAME = 'Agente Venzio';
+    document.getElementById('api-url-display').textContent = window.VENZIO_API;
+  </script>
+  <script src="./widget.js"></script>
+</body>
+</html>

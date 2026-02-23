@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Venzio Admin</title>
+    <meta name="description" content="Panel de administración de Venzio Voice Agent" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+        /* ── Base ─────────────────────────────────────────────────── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0F0F1A;
+            --bg-card: #1A1A2E;
+            --bg-surface: #16213E;
+            --primary: #6C63FF;
+            --primary-glow: rgba(108, 99, 255, 0.25);
+            --accent: #00D9FF;
+            --success: #00E676;
+            --error: #FF5252;
+            --warning: #FFC107;
+            --text: #E8E8FF;
+            --text-muted: #8888AA;
+            --border: rgba(255, 255, 255, 0.07);
+            --radius: 12px;
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        html {
+            font-size: 14px;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* ── Login Screen ─────────────────────────────────────────── */
+        #login-screen {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--bg);
+        }
+
+        .login-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 48px 40px;
+            width: 380px;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+        }
+
+        .login-logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-logo h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .login-logo p {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-surface);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+            margin-bottom: 16px;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            background: linear-gradient(135deg, var(--primary), #8B5CF6);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 4px;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px var(--primary-glow);
+        }
+
+        .login-error {
+            color: var(--error);
+            font-size: 13px;
+            margin-top: 12px;
+            text-align: center;
+            display: none;
+        }
+
+        /* ── App Shell ────────────────────────────────────────────── */
+        #app {
+            display: none;
+            width: 100%;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            min-height: 100vh;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+        }
+
+        .sidebar-logo {
+            padding: 24px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-logo h2 {
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sidebar-logo p {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .nav {
+            flex: 1;
+            padding: 16px 12px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: var(--transition);
+            margin-bottom: 4px;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text);
+        }
+
+        .nav-item.active {
+            background: rgba(108, 99, 255, 0.12);
+            color: var(--primary);
+        }
+
+        .nav-item svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer {
+            padding: 16px 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .sidebar-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .sidebar-user-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sidebar-user-info p {
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sidebar-user-info span {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .btn-logout {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .btn-logout:hover {
+            color: var(--error);
+        }
+
+        /* Main */
+        .main {
+            margin-left: 240px;
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .topbar {
+            padding: 20px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .content {
+            padding: 24px 32px;
+            flex: 1;
+        }
+
+        /* ── Stats Cards ─────────────────────────────────────────── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+        }
+
+        .stat-card .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .stat-card .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .stat-card .stat-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .stat-card.primary .stat-value {
+            color: var(--primary);
+        }
+
+        .stat-card.success .stat-value {
+            color: var(--success);
+        }
+
+        .stat-card.accent .stat-value {
+            color: var(--accent);
+        }
+
+        .stat-card.warning .stat-value {
+            color: var(--warning);
+        }
+
+        /* ── Tables ──────────────────────────────────────────────── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-header h2 {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--text-muted);
+            padding: 12px 20px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-weight: 500;
+        }
+
+        td {
+            padding: 12px 20px;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* ── Badges ──────────────────────────────────────────────── */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: rgba(0, 230, 118, 0.12);
+            color: var(--success);
+        }
+
+        .badge-error {
+            background: rgba(255, 82, 82, 0.12);
+            color: var(--error);
+        }
+
+        .badge-primary {
+            background: rgba(108, 99, 255, 0.12);
+            color: var(--primary);
+        }
+
+        .badge-muted {
+            background: rgba(136, 136, 170, 0.12);
+            color: var(--text-muted);
+        }
+
+        /* ── Buttons ─────────────────────────────────────────────── */
+        .btn-sm {
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            border: none;
+            transition: var(--transition);
+        }
+
+        .btn-sm.success {
+            background: rgba(0, 230, 118, 0.12);
+            color: var(--success);
+        }
+
+        .btn-sm.danger {
+            background: rgba(255, 82, 82, 0.12);
+            color: var(--error);
+        }
+
+        .btn-sm.primary {
+            background: rgba(108, 99, 255, 0.15);
+            color: var(--primary);
+        }
+
+        .btn-sm:hover {
+            opacity: 0.8;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: color 0.2s;
+        }
+
+        .btn-icon:hover {
+            color: var(--error);
+        }
+
+        /* ── Modal ───────────────────────────────────────────────── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            width: 440px;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-surface);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: var(--primary);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .btn-cancel {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: none;
+            color: var(--text-muted);
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .btn-cancel:hover {
+            color: var(--text);
+        }
+
+        /* ── Empty State ─────────────────────────────────────────── */
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        /* ── Toast ───────────────────────────────────────────────── */
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9999;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast-success {
+            border-color: rgba(0, 230, 118, 0.3);
+            color: var(--success);
+        }
+
+        .toast-error {
+            border-color: rgba(255, 82, 82, 0.3);
+            color: var(--error);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Hidden tabs */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── LOGIN ──────────────────────────────────────────────────────────────── -->
+    <div id="login-screen">
+        <div class="login-card">
+            <div class="login-logo">
+                <h1>Venzio Admin</h1>
+                <p>Panel de administración</p>
+            </div>
+            <form id="login-form">
+                <label>Email</label>
+                <input type="email" id="login-email" placeholder="admin@venzio.com" required />
+                <label>Contraseña</label>
+                <input type="password" id="login-pass" placeholder="••••••••" required />
+                <button type="submit" class="btn-primary">Iniciar sesión</button>
+                <p class="login-error" id="login-error">Email o contraseña incorrectos</p>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── APP ────────────────────────────────────────────────────────────────── -->
+    <div id="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <h2>Venzio</h2>
+                <p>Panel de administración</p>
+            </div>
+            <nav class="nav">
+                <div class="nav-item active" data-tab="stats">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7" />
+                        <rect x="14" y="3" width="7" height="7" />
+                        <rect x="14" y="14" width="7" height="7" />
+                        <rect x="3" y="14" width="7" height="7" />
+                    </svg>
+                    Dashboard
+                </div>
+                <div class="nav-item" data-tab="users">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    Usuarios
+                </div>
+                <div class="nav-item" data-tab="voices">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                        <line x1="12" y1="19" x2="12" y2="23" />
+                        <line x1="8" y1="23" x2="16" y2="23" />
+                    </svg>
+                    Voces TTS
+                </div>
+                <div class="nav-item" data-tab="plans">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
+                        <polyline points="16 21 12 17 8 21" />
+                        <polyline points="8 3 12 7 16 3" />
+                    </svg>
+                    Planes
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user">
+                    <div class="sidebar-avatar" id="user-initial">A</div>
+                    <div class="sidebar-user-info">
+                        <p id="user-email-display">admin</p>
+                        <span>Administrador</span>
+                    </div>
+                    <button class="btn-logout" id="btn-logout" title="Cerrar sesión">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                            <polyline points="16 17 21 12 16 7" />
+                            <line x1="21" y1="12" x2="9" y2="12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <main class="main">
+            <div class="topbar">
+                <h1 id="page-title">Dashboard</h1>
+                <div style="font-size:12px;color:var(--text-muted);" id="topbar-actions"></div>
+            </div>
+            <div class="content">
+
+                <!-- ── STATS TAB ─────────────────────────────────────────── -->
+                <div class="tab-content active" id="tab-stats">
+                    <div class="stats-grid">
+                        <div class="stat-card primary">
+                            <div class="stat-label">Usuarios totales</div>
+                            <div class="stat-value" id="stat-users">–</div>
+                            <div class="stat-sub">Registrados</div>
+                        </div>
+                        <div class="stat-card success">
+                            <div class="stat-label">Sesiones activas</div>
+                            <div class="stat-value" id="stat-active">–</div>
+                            <div class="stat-sub" id="stat-active-max">de – máximas</div>
+                        </div>
+                        <div class="stat-card accent">
+                            <div class="stat-label">Sesiones totales</div>
+                            <div class="stat-value" id="stat-sessions">–</div>
+                            <div class="stat-sub">Históricas</div>
+                        </div>
+                        <div class="stat-card warning">
+                            <div class="stat-label">Voces activas</div>
+                            <div class="stat-value" id="stat-voices">–</div>
+                            <div class="stat-sub">Disponibles</div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Sesiones en vivo</h2>
+                            <button class="btn-sm primary" onclick="loadStats()">↻ Actualizar</button>
+                        </div>
+                        <div id="active-sessions-container">
+                            <div class="empty">No hay sesiones activas.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── USERS TAB ─────────────────────────────────────────── -->
+                <div class="tab-content" id="tab-users">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Usuarios</h2>
+                            <button class="btn-sm primary" onclick="loadUsers()">↻ Actualizar</button>
+                        </div>
+                        <div id="users-container">
+                            <div class="empty">Cargando usuarios...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── VOICES TAB ────────────────────────────────────────── -->
+                <div class="tab-content" id="tab-voices">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Voces TTS</h2>
+                            <button class="btn-sm primary" onclick="openModal('voice')">+ Agregar voz</button>
+                        </div>
+                        <div id="voices-container">
+                            <div class="empty">Cargando voces...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── PLANS TAB ─────────────────────────────────────────── -->
+                <div class="tab-content" id="tab-plans">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Planes</h2>
+                            <button class="btn-sm primary" onclick="openModal('plan')">+ Nuevo plan</button>
+                        </div>
+                        <div id="plans-container">
+                            <div class="empty">Cargando planes...</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /content -->
+        </main>
+    </div><!-- /app -->
+
+    <!-- ── MODAL: Add Voice ──────────────────────────────────────────────────── -->
+    <div class="modal-overlay" id="modal-voice">
+        <div class="modal">
+            <h2>Agregar nueva voz</h2>
+            <div class="form-group">
+                <label>Nombre de la voz</label>
+                <input type="text" id="vf-name" placeholder="Ej: Español Davefx" />
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Idioma</label>
+                    <select id="vf-lang">
+                        <option value="es">Español (es)</option>
+                        <option value="en">Inglés (en)</option>
+                        <option value="pt">Portugués (pt)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Archivo .onnx</label>
+                    <input type="text" id="vf-file" placeholder="es_ES-davefx-medium.onnx" />
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Descripción (opcional)</label>
+                <input type="text" id="vf-desc" placeholder="Voz masculina, calidad media" />
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('voice')">Cancelar</button>
+                <button class="btn-primary" style="width:auto;padding:10px 24px;"
+                    onclick="createVoice()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── MODAL: Add Plan ───────────────────────────────────────────────────── -->
+    <div class="modal-overlay" id="modal-plan">
+        <div class="modal">
+            <h2>Nuevo plan</h2>
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="pf-name" placeholder="Ej: Pro" />
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Sesiones máx.</label>
+                    <input type="number" id="pf-sessions" value="10" min="1" />
+                </div>
+                <div class="form-group">
+                    <label>Minutos máx.</label>
+                    <input type="number" id="pf-minutes" value="300" min="1" />
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Precio (USD/mes)</label>
+                <input type="number" id="pf-price" value="0" min="0" step="0.01" />
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('plan')">Cancelar</button>
+                <button class="btn-primary" style="width:auto;padding:10px 24px;" onclick="createPlan()">Crear
+                    plan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── TOAST ─────────────────────────────────────────────────────────────── -->
+    <div id="toast"></div>
+
+    <script>
+        // ── Config ──────────────────────────────────────────────────────────────────
+        const API = window.VENZIO_ADMIN_API || 'http://localhost:8000';
+        let token = localStorage.getItem('vz_token');
+
+        // ── Auth ─────────────────────────────────────────────────────────────────────
+        async function login(email, password) {
+            const form = new URLSearchParams({ username: email, password });
+            const res = await fetch(`${API}/auth/token`, { method: 'POST', body: form });
+            if (!res.ok) throw new Error('Invalid credentials');
+            const data = await res.json();
+            return data;
+        }
+
+        function logout() {
+            localStorage.removeItem('vz_token');
+            token = null;
+            document.getElementById('app').style.display = 'none';
+            document.getElementById('login-screen').style.display = 'flex';
+        }
+
+        async function apiFetch(path, options = {}) {
+            const res = await fetch(`${API}${path}`, {
+                ...options,
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...(options.headers || {}) },
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || res.statusText);
+            }
+            return res.status === 204 ? null : res.json();
+        }
+
+        // ── Login Form ────────────────────────────────────────────────────────────────
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-pass').value;
+            const errEl = document.getElementById('login-error');
+            try {
+                const data = await login(email, pass);
+                if (!data.user.is_admin) throw new Error('No eres admin');
+                token = data.access_token;
+                localStorage.setItem('vz_token', token);
+                document.getElementById('user-email-display').textContent = data.user.email;
+                document.getElementById('user-initial').textContent = data.user.email[0].toUpperCase();
+                showApp();
+            } catch (err) {
+                errEl.textContent = err.message;
+                errEl.style.display = 'block';
+            }
+        });
+
+        document.getElementById('btn-logout').addEventListener('click', logout);
+
+        // ── Show App ──────────────────────────────────────────────────────────────────
+        function showApp() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app').style.display = 'flex';
+            loadStats();
+            loadVoices();
+            loadUsers();
+            loadPlans();
+        }
+
+        // Auto-login if token exists
+        if (token) {
+            apiFetch('/auth/me').then(user => {
+                if (user && user.is_admin) {
+                    document.getElementById('user-email-display').textContent = user.email;
+                    document.getElementById('user-initial').textContent = user.email[0].toUpperCase();
+                    showApp();
+                } else { logout(); }
+            }).catch(() => logout());
+        }
+
+        // ── Tab Navigation ────────────────────────────────────────────────────────────
+        const PAGE_TITLES = { stats: 'Dashboard', users: 'Usuarios', voices: 'Voces TTS', plans: 'Planes' };
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                item.classList.add('active');
+                const tab = item.getAttribute('data-tab');
+                document.getElementById(`tab-${tab}`).classList.add('active');
+                document.getElementById('page-title').textContent = PAGE_TITLES[tab];
+            });
+        });
+
+        // ── Stats ─────────────────────────────────────────────────────────────────────
+        async function loadStats() {
+            try {
+                const s = await apiFetch('/admin/stats');
+                document.getElementById('stat-users').textContent = s.total_users;
+                document.getElementById('stat-active').textContent = s.active_sessions_count;
+                document.getElementById('stat-active-max').textContent = `de ${s.max_sessions} máximas`;
+                document.getElementById('stat-sessions').textContent = s.total_sessions;
+
+                const v = await apiFetch('/admin/voices');
+                document.getElementById('stat-voices').textContent = v.filter(x => x.is_active).length;
+
+                const container = document.getElementById('active-sessions-container');
+                if (!s.active_sessions || s.active_sessions.length === 0) {
+                    container.innerHTML = '<div class="empty">No hay sesiones activas ahora mismo.</div>';
+                } else {
+                    container.innerHTML = `<table><thead><tr><th>Token</th><th>Usuario</th></tr></thead><tbody>
+          ${s.active_sessions.map(sess => `<tr><td><code>${sess.session_token}</code></td>
+          <td>${sess.user_id || 'Anónimo'}</td></tr>`).join('')}</tbody></table>`;
+                }
+            } catch (e) { toast('Error cargando stats: ' + e.message, 'error'); }
+        }
+
+        // ── Users ─────────────────────────────────────────────────────────────────────
+        async function loadUsers() {
+            try {
+                const users = await apiFetch('/admin/users');
+                const container = document.getElementById('users-container');
+                if (!users.length) { container.innerHTML = '<div class="empty">Sin usuarios registrados.</div>'; return; }
+                container.innerHTML = `<table>
+        <thead><tr><th>ID</th><th>Email</th><th>Rol</th><th>Estado</th><th>Plan</th><th>Acciones</th></tr></thead>
+        <tbody>${users.map(u => `
+          <tr>
+            <td style="color:var(--text-muted)">#${u.id}</td>
+            <td>${u.email}</td>
+            <td><span class="badge ${u.is_admin ? 'badge-primary' : 'badge-muted'}">${u.is_admin ? 'Admin' : 'Usuario'}</span></td>
+            <td><span class="badge ${u.is_active ? 'badge-success' : 'badge-error'}">${u.is_active ? 'Activo' : 'Inactivo'}</span></td>
+            <td>${u.plan_id ? `Plan #${u.plan_id}` : '<span style="color:var(--text-muted)">Sin plan</span>'}</td>
+            <td>
+              <button class="btn-sm ${u.is_active ? 'danger' : 'success'}" onclick="toggleUser(${u.id})">${u.is_active ? 'Desactivar' : 'Activar'}</button>
+            </td>
+          </tr>`).join('')}
+        </tbody></table>`;
+            } catch (e) { toast('Error cargando usuarios: ' + e.message, 'error'); }
+        }
+
+        async function toggleUser(id) {
+            try {
+                await apiFetch(`/admin/users/${id}/toggle`, { method: 'PUT' });
+                toast('Usuario actualizado', 'success');
+                loadUsers();
+            } catch (e) { toast(e.message, 'error'); }
+        }
+
+        // ── Voices ────────────────────────────────────────────────────────────────────
+        async function loadVoices() {
+            try {
+                const voices = await apiFetch('/admin/voices');
+                const container = document.getElementById('voices-container');
+                if (!voices.length) { container.innerHTML = '<div class="empty">Sin voces configuradas. Agrega una.</div>'; return; }
+                container.innerHTML = `<table>
+        <thead><tr><th>ID</th><th>Nombre</th><th>Idioma</th><th>Archivo .onnx</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody>${voices.map(v => `
+          <tr>
+            <td style="color:var(--text-muted)">#${v.id}</td>
+            <td>${v.name}</td>
+            <td><span class="badge badge-muted">${v.language.toUpperCase()}</span></td>
+            <td><code style="font-size:11px;color:var(--text-muted)">${v.model_file}</code></td>
+            <td><span class="badge ${v.is_active ? 'badge-success' : 'badge-error'}">${v.is_active ? 'Activa' : 'Inactiva'}</span></td>
+            <td style="display:flex;gap:8px;align-items:center;">
+              <button class="btn-sm ${v.is_active ? 'danger' : 'success'}" onclick="toggleVoice(${v.id}, ${!v.is_active})">${v.is_active ? 'Desactivar' : 'Activar'}</button>
+              <button class="btn-icon" onclick="deleteVoice(${v.id})" title="Eliminar">🗑</button>
+            </td>
+          </tr>`).join('')}
+        </tbody></table>`;
+            } catch (e) { toast('Error cargando voces: ' + e.message, 'error'); }
+        }
+
+        async function toggleVoice(id, isActive) {
+            try {
+                await apiFetch(`/admin/voices/${id}`, { method: 'PUT', body: JSON.stringify({ is_active: isActive }) });
+                toast('Voz actualizada', 'success');
+                loadVoices();
+            } catch (e) { toast(e.message, 'error'); }
+        }
+
+        async function deleteVoice(id) {
+            if (!confirm('¿Eliminar esta voz?')) return;
+            try {
+                await apiFetch(`/admin/voices/${id}`, { method: 'DELETE' });
+                toast('Voz eliminada', 'success');
+                loadVoices();
+            } catch (e) { toast(e.message, 'error'); }
+        }
+
+        async function createVoice() {
+            const payload = {
+                name: document.getElementById('vf-name').value,
+                language: document.getElementById('vf-lang').value,
+                model_file: document.getElementById('vf-file').value,
+                description: document.getElementById('vf-desc').value || null,
+            };
+            if (!payload.name || !payload.model_file) { toast('Nombre y archivo son requeridos', 'error'); return; }
+            try {
+                await apiFetch('/admin/voices', { method: 'POST', body: JSON.stringify(payload) });
+                toast('Voz creada exitosamente', 'success');
+                closeModal('voice');
+                loadVoices();
+            } catch (e) { toast(e.message, 'error'); }
+        }
+
+        // ── Plans ─────────────────────────────────────────────────────────────────────
+        async function loadPlans() {
+            try {
+                const plans = await apiFetch('/plans');
+                const container = document.getElementById('plans-container');
+                if (!plans.length) { container.innerHTML = '<div class="empty">Sin planes definidos.</div>'; return; }
+                container.innerHTML = `<table>
+        <thead><tr><th>ID</th><th>Nombre</th><th>Sesiones</th><th>Minutos</th><th>Precio</th><th>Acciones</th></tr></thead>
+        <tbody>${plans.map(p => `
+          <tr>
+            <td style="color:var(--text-muted)">#${p.id}</td>
+            <td><strong>${p.name}</strong></td>
+            <td>${p.max_sessions}</td>
+            <td>${p.max_minutes}</td>
+            <td>${p.price === 0 ? '<span class="badge badge-success">Gratis</span>' : `<strong>$${p.price}/mes</strong>`}</td>
+            <td><button class="btn-icon" onclick="deletePlan(${p.id})" title="Desactivar">🗑</button></td>
+          </tr>`).join('')}
+        </tbody></table>`;
+            } catch (e) { toast('Error cargando planes: ' + e.message, 'error'); }
+        }
+
+        async function createPlan() {
+            const payload = {
+                name: document.getElementById('pf-name').value,
+                max_sessions: parseInt(document.getElementById('pf-sessions').value),
+                max_minutes: parseInt(document.getElementById('pf-minutes').value),
+                price: parseFloat(document.getElementById('pf-price').value),
+            };
+            if (!payload.name) { toast('El nombre es requerido', 'error'); return; }
+            try {
+                await apiFetch('/plans', { method: 'POST', body: JSON.stringify(payload) });
+                toast('Plan creado', 'success');
+                closeModal('plan');
+                loadPlans();
+            } catch (e) { toast(e.message, 'error'); }
+        }
+
+        async function deletePlan(id) {
+            if (!confirm('¿Desactivar este plan?')) return;
+            try {
+                await apiFetch(`/plans/${id}`, { method: 'DELETE' });
+                toast('Plan desactivado', 'success');
+                loadPlans();
+            } catch (e) { toast(e.message, 'error'); }
+        }
+
+        // ── Modals ─────────────────────────────────────────────────────────────────────
+        function openModal(name) { document.getElementById(`modal-${name}`).classList.add('open'); }
+        function closeModal(name) { document.getElementById(`modal-${name}`).classList.remove('open'); }
+        document.querySelectorAll('.modal-overlay').forEach(m => {
+            m.addEventListener('click', (e) => { if (e.target === m) m.classList.remove('open'); });
+        });
+
+        // ── Toast ──────────────────────────────────────────────────────────────────────
+        let toastTimer;
+        function toast(msg, type = 'success') {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.className = `toast-${type}`;
+            el.style.display = 'block';
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3500);
+        }
+    </script>
+</body>
+
+</html>

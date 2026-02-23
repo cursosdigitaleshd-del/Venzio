@@ -1,0 +1,447 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Venzio Voice Widget – Styles
+   ═══════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --vz-primary: #6C63FF;
+  --vz-primary-hover: #5A52E0;
+  --vz-primary-glow: rgba(108, 99, 255, 0.4);
+  --vz-bg-dark: #0F0F1A;
+  --vz-bg-card: #1A1A2E;
+  --vz-bg-surface: #16213E;
+  --vz-text: #E8E8FF;
+  --vz-text-muted: #8888AA;
+  --vz-accent: #00D9FF;
+  --vz-success: #00E676;
+  --vz-error: #FF5252;
+  --vz-warning: #FFC107;
+  --vz-radius: 16px;
+  --vz-radius-sm: 8px;
+  --vz-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --vz-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Reset ─────────────────────────────────────────────────── */
+.vz-widget * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ── Widget Container ──────────────────────────────────────── */
+.vz-widget {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 99999;
+  font-family: 'Inter', -apple-system, sans-serif;
+  color: var(--vz-text);
+}
+
+/* ── Floating Trigger Button ───────────────────────────────── */
+.vz-trigger {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, var(--vz-primary), #8B5CF6);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 24px var(--vz-primary-glow);
+  transition: var(--vz-transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.vz-trigger::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--vz-primary), var(--vz-accent));
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.vz-trigger:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 32px var(--vz-primary-glow);
+}
+
+.vz-trigger:hover::before {
+  opacity: 1;
+}
+
+.vz-trigger svg {
+  width: 28px;
+  height: 28px;
+  transition: transform 0.3s;
+}
+
+.vz-trigger.active {
+  background: linear-gradient(135deg, var(--vz-error), #FF7043);
+  box-shadow: 0 4px 24px rgba(255, 82, 82, 0.4);
+}
+
+/* Pulse animation when idle */
+.vz-trigger:not(.active)::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--vz-primary);
+  animation: vz-pulse 2s infinite;
+}
+
+@keyframes vz-pulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+/* ── Chat Panel ────────────────────────────────────────────── */
+.vz-panel {
+  position: absolute;
+  bottom: 80px;
+  right: 0;
+  width: 380px;
+  max-height: 560px;
+  background: var(--vz-bg-dark);
+  border-radius: var(--vz-radius);
+  box-shadow: var(--vz-shadow);
+  border: 1px solid rgba(108, 99, 255, 0.15);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+  pointer-events: none;
+  transition: var(--vz-transition);
+}
+
+.vz-panel.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: all;
+}
+
+/* ── Panel Header ──────────────────────────────────────────── */
+.vz-header {
+  background: linear-gradient(135deg, var(--vz-bg-surface), var(--vz-bg-card));
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.vz-header-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--vz-primary), var(--vz-accent));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vz-header-avatar svg {
+  width: 20px;
+  height: 20px;
+  color: white;
+}
+
+.vz-header-info h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--vz-text);
+}
+
+.vz-header-info p {
+  font-size: 12px;
+  color: var(--vz-text-muted);
+  margin-top: 2px;
+}
+
+.vz-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vz-success);
+  display: inline-block;
+  margin-right: 6px;
+  animation: vz-blink 1.5s infinite;
+}
+
+@keyframes vz-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Voice Selector ────────────────────────────────────────── */
+.vz-voice-selector {
+  padding: 12px 20px;
+  background: var(--vz-bg-card);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.vz-voice-selector label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--vz-text-muted);
+  margin-bottom: 6px;
+  display: block;
+}
+
+.vz-voice-selector select {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--vz-radius-sm);
+  border: 1px solid rgba(108, 99, 255, 0.2);
+  background: var(--vz-bg-surface);
+  color: var(--vz-text);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238888AA' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.vz-voice-selector select:focus {
+  border-color: var(--vz-primary);
+}
+
+/* ── Messages Area ─────────────────────────────────────────── */
+.vz-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 200px;
+  max-height: 300px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--vz-primary) transparent;
+}
+
+.vz-messages::-webkit-scrollbar {
+  width: 4px;
+}
+
+.vz-messages::-webkit-scrollbar-thumb {
+  background: var(--vz-primary);
+  border-radius: 4px;
+}
+
+.vz-msg {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 85%;
+  animation: vz-msg-in 0.3s ease-out;
+}
+
+@keyframes vz-msg-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.vz-msg.agent {
+  background: var(--vz-bg-card);
+  border: 1px solid rgba(108, 99, 255, 0.1);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+
+.vz-msg.user {
+  background: linear-gradient(135deg, var(--vz-primary), #8B5CF6);
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+
+.vz-msg.system {
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.2);
+  color: var(--vz-warning);
+  align-self: center;
+  font-size: 12px;
+  text-align: center;
+}
+
+.vz-msg.error {
+  background: rgba(255, 82, 82, 0.1);
+  border: 1px solid rgba(255, 82, 82, 0.2);
+  color: var(--vz-error);
+  align-self: center;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ── Waveform Visualizer ───────────────────────────────────── */
+.vz-visualizer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 16px;
+  height: 60px;
+}
+
+.vz-bar {
+  width: 4px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--vz-primary);
+  transition: height 0.1s ease;
+}
+
+.vz-visualizer.listening .vz-bar {
+  animation: vz-wave 0.8s ease-in-out infinite;
+  background: linear-gradient(to top, var(--vz-primary), var(--vz-accent));
+}
+
+.vz-visualizer.processing .vz-bar {
+  animation: vz-processing 1s ease-in-out infinite;
+  background: var(--vz-warning);
+}
+
+.vz-visualizer.speaking .vz-bar {
+  animation: vz-speak 0.6s ease-in-out infinite;
+  background: linear-gradient(to top, var(--vz-success), var(--vz-accent));
+}
+
+@keyframes vz-wave {
+  0%, 100% { height: 8px; }
+  50% { height: 32px; }
+}
+
+@keyframes vz-processing {
+  0%, 100% { height: 6px; opacity: 0.4; }
+  50% { height: 16px; opacity: 1; }
+}
+
+@keyframes vz-speak {
+  0%, 100% { height: 8px; }
+  50% { height: 28px; }
+}
+
+/* Stagger animation delays for bars */
+.vz-bar:nth-child(1) { animation-delay: 0s; }
+.vz-bar:nth-child(2) { animation-delay: 0.1s; }
+.vz-bar:nth-child(3) { animation-delay: 0.2s; }
+.vz-bar:nth-child(4) { animation-delay: 0.3s; }
+.vz-bar:nth-child(5) { animation-delay: 0.15s; }
+.vz-bar:nth-child(6) { animation-delay: 0.25s; }
+.vz-bar:nth-child(7) { animation-delay: 0.05s; }
+.vz-bar:nth-child(8) { animation-delay: 0.35s; }
+.vz-bar:nth-child(9) { animation-delay: 0.12s; }
+.vz-bar:nth-child(10) { animation-delay: 0.22s; }
+
+/* ── Controls Footer ───────────────────────────────────────── */
+.vz-controls {
+  padding: 16px 20px;
+  background: var(--vz-bg-card);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vz-mic-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--vz-primary);
+  background: transparent;
+  color: var(--vz-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--vz-transition);
+  flex-shrink: 0;
+}
+
+.vz-mic-btn:hover {
+  background: var(--vz-primary);
+  color: white;
+}
+
+.vz-mic-btn.recording {
+  background: var(--vz-error);
+  border-color: var(--vz-error);
+  color: white;
+  animation: vz-recording-pulse 1s infinite;
+}
+
+@keyframes vz-recording-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(255, 82, 82, 0); }
+}
+
+.vz-mic-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.vz-mic-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  animation: none;
+}
+
+.vz-status-text {
+  font-size: 12px;
+  color: var(--vz-text-muted);
+  flex: 1;
+}
+
+.vz-status-text span {
+  color: var(--vz-accent);
+  font-weight: 500;
+}
+
+.vz-end-btn {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 82, 82, 0.3);
+  background: transparent;
+  color: var(--vz-error);
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--vz-transition);
+}
+
+.vz-end-btn:hover {
+  background: var(--vz-error);
+  color: white;
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 420px) {
+  .vz-panel {
+    width: calc(100vw - 32px);
+    right: -8px;
+    bottom: 72px;
+  }
+
+  .vz-trigger {
+    width: 56px;
+    height: 56px;
+  }
+}
