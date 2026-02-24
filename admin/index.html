@@ -516,7 +516,8 @@
         }
 
         .form-group input,
-        .form-group select {
+        .form-group select,
+        .form-group textarea {
             width: 100%;
             padding: 9px 12px;
             border-radius: 8px;
@@ -529,8 +530,14 @@
             transition: border-color 0.2s;
         }
 
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
         .form-group input:focus,
-        .form-group select:focus {
+        .form-group select:focus,
+        .form-group textarea:focus {
             border-color: var(--primary);
         }
 
@@ -956,6 +963,25 @@
         </div>
     </div>
 
+    <!-- ── MODAL: Edit Prompt ─────────────────────────────────────────────────── -->
+    <div class="modal-overlay" id="modal-edit-prompt">
+        <div class="modal">
+            <h2 id="prompt-modal-title">Editar Prompt Maestro</h2>
+            <div class="form-group">
+                <label>Usuario</label>
+                <input type="text" id="ep-user" readonly />
+            </div>
+            <div class="form-group">
+                <label>Prompt Maestro</label>
+                <textarea id="ep-prompt" rows="8" placeholder="Escribe el prompt personalizado para este usuario..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('edit-prompt')">Cancelar</button>
+                <button class="btn-primary" style="width:auto;padding:10px 24px;" onclick="updateUserPrompt()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ── TOAST ─────────────────────────────────────────────────────────────── -->
     <div id="toast"></div>
 
@@ -1079,7 +1105,7 @@
                 const container = document.getElementById('users-container');
                 if (!users.length) { container.innerHTML = '<div class="empty">Sin usuarios registrados.</div>'; return; }
                 container.innerHTML = `<table>
-        <thead><tr><th>ID</th><th>Email</th><th>Nombre</th><th>Teléfono</th><th>Empresa</th><th>Sitio Web</th><th>Plan</th><th>Suscripción</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>ID</th><th>Email</th><th>Nombre</th><th>Teléfono</th><th>Empresa</th><th>Sitio Web</th><th>Plan</th><th>Suscripción</th><th>Prompt Maestro</th><th>Estado</th><th>Acciones</th></tr></thead>
         <tbody>${users.map(u => `
           <tr>
             <td style="color:var(--text-muted)">#${u.id}</td>
@@ -1090,9 +1116,11 @@
             <td>${u.website ? `<a href="${u.website}" target="_blank" style="color:var(--accent)">${u.website}</a>` : '<span style="color:var(--text-muted)">–</span>'}</td>
             <td>${u.plan_id ? `Plan #${u.plan_id}` : '<span style="color:var(--text-muted)">Sin plan</span>'}</td>
             <td>${u.subscription_end_date ? new Date(u.subscription_end_date).toLocaleDateString() : '<span style="color:var(--text-muted)">–</span>'}</td>
+            <td style="max-width:200px;word-wrap:break-word;font-size:11px;color:var(--text-muted);">${u.master_prompt ? u.master_prompt.substring(0, 50) + '...' : '<span style="color:var(--text-muted)">Predeterminado</span>'}</td>
             <td><span class="badge ${u.is_active ? 'badge-success' : 'badge-error'}">${u.is_active ? 'Activo' : 'Inactivo'}</span></td>
             <td style="display:flex;gap:8px;align-items:center;">
               <button class="btn-sm primary" onclick="openPaymentModal(${u.id}, '${u.email}')">💳 Pago</button>
+              <button class="btn-sm success" onclick="openPromptModal(${u.id}, '${u.email}', '${u.master_prompt || ''}')">📝 Prompt</button>
               <button class="btn-sm ${u.is_active ? 'danger' : 'success'}" onclick="toggleUser(${u.id})">${u.is_active ? 'Desactivar' : 'Activar'}</button>
             </td>
           </tr>`).join('')}
@@ -1240,6 +1268,33 @@
             document.getElementById('modal-payment').classList.add('open');
             // Store userId for later
             document.getElementById('modal-payment').dataset.userId = userId;
+        }
+
+        function openPromptModal(userId, userEmail, currentPrompt) {
+            document.getElementById('ep-user').value = userEmail;
+            document.getElementById('prompt-modal-title').textContent = `Editar Prompt Maestro - ${userEmail}`;
+            document.getElementById('ep-prompt').value = currentPrompt;
+            document.getElementById('modal-edit-prompt').classList.add('open');
+            // Store userId for later
+            document.getElementById('modal-edit-prompt').dataset.userId = userId;
+            // Focus on textarea
+            setTimeout(() => document.getElementById('ep-prompt').focus(), 100);
+        }
+
+        async function updateUserPrompt() {
+            const userId = document.getElementById('modal-edit-prompt').dataset.userId;
+            const prompt = document.getElementById('ep-prompt').value.trim();
+            try {
+                await apiFetch(`/admin/users/${userId}/prompt`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ master_prompt: prompt })
+                });
+                toast('Prompt maestro actualizado', 'success');
+                closeModal('edit-prompt');
+                loadUsers(); // Refresh users list
+            } catch (e) {
+                toast('Error actualizando prompt: ' + e.message, 'error');
+            }
         }
 
         async function registerPayment() {

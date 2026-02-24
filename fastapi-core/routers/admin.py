@@ -61,6 +61,10 @@ class RegisterPayment(BaseModel):
     plan_id: int | None = None
 
 
+class UpdateUserPrompt(BaseModel):
+    master_prompt: str
+
+
 class PaymentOut(BaseModel):
     id: int
     user_id: int
@@ -132,6 +136,21 @@ def toggle_user(
     user.is_active = not user.is_active
     db.commit()
     return {"ok": True, "is_active": user.is_active}
+
+
+@router.put("/users/{user_id}/prompt")
+def update_user_prompt(
+    user_id: int,
+    payload: UpdateUserPrompt,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    user.master_prompt = payload.master_prompt
+    db.commit()
+    return {"ok": True, "master_prompt": user.master_prompt}
 
 
 # ── Voices ────────────────────────────────────────────────────────────────────

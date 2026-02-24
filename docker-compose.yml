@@ -66,6 +66,12 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/certs:/etc/nginx/certs:ro
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+      - ./contact:/usr/share/nginx/html/contact:ro
+      - ./login:/usr/share/nginx/html/login:ro
+      - ./prices:/usr/share/nginx/html/prices:ro
+      - ./register:/usr/share/nginx/html/register:ro
+      - ./user:/usr/share/nginx/html/user:ro
       - ./widget:/usr/share/nginx/html/widget:ro
       - ./admin:/usr/share/nginx/html/admin:ro
     depends_on:

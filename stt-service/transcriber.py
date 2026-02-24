@@ -3,6 +3,7 @@ import os
 import tempfile
 from faster_whisper import WhisperModel
 from loguru import logger
+from pydub import AudioSegment
 from config import settings
 
 
@@ -33,6 +34,24 @@ class WhisperTranscriber:
         self._initialized = True
         logger.info(f"✅ Whisper listo | modelo={model_name} | idioma={self.language}")
 
+    def _convert_to_wav(self, audio_bytes: bytes) -> bytes:
+        """
+        Convierte audio bytes a formato WAV usando pydub.
+        Deja que ffmpeg auto-detecte el formato.
+        """
+        try:
+            # Crear AudioSegment desde bytes - ffmpeg auto-detecta formato
+            audio = AudioSegment.from_file(io.BytesIO(audio_bytes))
+
+            # Exportar a WAV
+            wav_buffer = io.BytesIO()
+            audio.export(wav_buffer, format="wav")
+            return wav_buffer.getvalue()
+
+        except Exception as e:
+            logger.error(f"Error procesando audio con ffmpeg: {e}")
+            raise RuntimeError(f"Audio inválido o corrupto: {e}")
+
     def transcribe(self, audio_bytes: bytes) -> str:
         """
         Transcribe audio bytes a texto en español.
@@ -41,6 +60,16 @@ class WhisperTranscriber:
         Returns:
             texto transcripto (string)
         """
+        logger.debug(f"Audio recibido: tamaño={len(audio_bytes)} bytes")
+
+        # Convertir a WAV usando pydub (ffmpeg auto-detecta formato)
+        try:
+            audio_bytes = self._convert_to_wav(audio_bytes)
+            logger.debug(f"Conversión a WAV exitosa: nuevo tamaño={len(audio_bytes)} bytes")
+        except Exception as e:
+            logger.error(f"Error procesando audio: {e}")
+            raise RuntimeError(f"Audio inválido o corrupto: {e}")
+
         # Escribir a archivo temporal para faster-whisper
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             tmp.write(audio_bytes)
