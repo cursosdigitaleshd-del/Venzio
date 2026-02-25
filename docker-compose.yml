@@ -4,13 +4,14 @@ services:
       context: ./fastapi-core
       dockerfile: Dockerfile
     restart: unless-stopped
+    expose:
+      - "8000"
     env_file:
       - .env
     depends_on:
       - stt-service
       - tts-service
-    expose:
-          - "8000:8000"
+
   stt-service:
     build:
       context: ./stt-service
@@ -30,3 +31,13 @@ services:
       - "8002"
     env_file:
       - .env
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - fastapi-core
