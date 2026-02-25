@@ -1,5 +1,5 @@
 FROM nginx:alpine
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
 # Copiar archivos estáticos
 COPY admin /usr/share/nginx/html/admin
 COPY contact /usr/share/nginx/html/contact
