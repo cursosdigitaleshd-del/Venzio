@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from auth import decode_token
 from concurrency import session_manager
 from database import get_db
-from models import VoiceSession, Voice
+from models import User, VoiceSession, Voice
 from services import llm, stt_client, tts_client
 
 router = APIRouter(tags=["Sesiones de Voz"])
@@ -20,7 +20,7 @@ router = APIRouter(tags=["Sesiones de Voz"])
 async def voice_session(
     websocket: WebSocket,
     voice_id: int,
-    authorization: str | None = None,
+    token: str | None = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -37,20 +37,20 @@ async def voice_session(
     """
     await websocket.accept()
 
-    # Parsear usuario opcional desde header Authorization
+    # Parsear usuario opcional desde query parameter token
     user = None
     master_prompt = None
-    if authorization and authorization.startswith("Bearer "):
-        token = authorization[7:]  # Remove "Bearer "
+    if token:
         try:
             payload = decode_token(token)
             user_id = payload.get("sub")
             if user_id:
                 user = db.get(User, int(user_id))
                 if user and user.is_active:
-                    # Verificar suscripción activa
+                    # Verificar suscripción activa o si es admin
                     now = datetime.now(timezone.utc)
-                    if user.subscription_end_date and user.subscription_end_date.replace(tzinfo=timezone.utc) > now:
+                    has_active_subscription = user.subscription_end_date and user.subscription_end_date.replace(tzinfo=timezone.utc) > now
+                    if has_active_subscription or user.is_admin:
                         master_prompt = user.master_prompt
                         db_session.user_id = user.id
                     else:

@@ -985,6 +985,19 @@
     <!-- ── TOAST ─────────────────────────────────────────────────────────────── -->
     <div id="toast"></div>
 
+    <!-- Venzio Widget -->
+    <link rel="stylesheet" href="/widget/widget.css" />
+    <script>
+      window.VENZIO_API = window.location.origin;
+      window.VENZIO_WS = 'ws://' + window.location.host;
+      window.VENZIO_NAME = 'Agente Venzio';
+      if (window.VENZIO_USER_DATA) {
+        window.VENZIO_USER_ID = window.VENZIO_USER_DATA.id;
+        window.VENZIO_USER_TOKEN = token;
+      }
+    </script>
+    <script src="/widget/widget.js"></script>
+
     <script>
         // ── Config ──────────────────────────────────────────────────────────────────
         const API = window.VENZIO_ADMIN_API || 'http://localhost:8000';
@@ -1031,6 +1044,7 @@
                 localStorage.setItem('vz_token', token);
                 document.getElementById('user-email-display').textContent = data.user.email;
                 document.getElementById('user-initial').textContent = data.user.email[0].toUpperCase();
+                window.VENZIO_USER_DATA = data.user; // Store user data for widget
                 showApp();
             } catch (err) {
                 errEl.textContent = err.message;

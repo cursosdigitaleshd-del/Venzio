@@ -1,9 +1,5 @@
 version: "3.9"
 
-networks:
-  venzio-net:
-    driver: bridge
-
 services:
   fastapi-core:
     build:
@@ -12,17 +8,17 @@ services:
     container_name: venzio-core
     restart: unless-stopped
     ports:
-      - "8000:8000"
-    volumes:
-      - ./fastapi-core:/app
-      - ./data:/app/data
+      - "8000:8000"   # SOLO este puerto se expone
     env_file:
       - .env
     depends_on:
       - stt-service
       - tts-service
-    networks:
-      - venzio-net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1500M
 
   stt-service:
     build:
@@ -30,15 +26,15 @@ services:
       dockerfile: Dockerfile
     container_name: venzio-stt
     restart: unless-stopped
-    ports:
-      - "8001:8001"
-    volumes:
-      - ./stt-service:/app
-      - ./models/whisper:/app/models
+    expose:
+      - "8001"   # Solo interno
     env_file:
       - .env
-    networks:
-      - venzio-net
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 3G
 
   tts-service:
     build:
@@ -46,35 +42,12 @@ services:
       dockerfile: Dockerfile
     container_name: venzio-tts
     restart: unless-stopped
-    ports:
-      - "8002:8002"
-    volumes:
-      - ./tts-service:/app
-      - ./models/piper:/app/models
+    expose:
+      - "8002"   # Solo interno
     env_file:
       - .env
-    networks:
-      - venzio-net
-
-  nginx:
-    image: nginx:alpine
-    container_name: venzio-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
-      - ./index.html:/usr/share/nginx/html/index.html:ro
-      - ./contact:/usr/share/nginx/html/contact:ro
-      - ./login:/usr/share/nginx/html/login:ro
-      - ./prices:/usr/share/nginx/html/prices:ro
-      - ./register:/usr/share/nginx/html/register:ro
-      - ./user:/usr/share/nginx/html/user:ro
-      - ./widget:/usr/share/nginx/html/widget:ro
-      - ./admin:/usr/share/nginx/html/admin:ro
-    depends_on:
-      - fastapi-core
-    networks:
-      - venzio-net
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G

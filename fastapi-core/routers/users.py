@@ -25,6 +25,7 @@ class UserProfile(BaseModel):
     phone: str | None
     company_name: str | None
     website: str | None
+    master_prompt: str | None
     plan_id: int | None
     subscription_end_date: datetime | None
     is_active: bool

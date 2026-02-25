@@ -208,7 +208,10 @@
             this._setState(STATES.CONNECTING);
             this._setStatus('Conectando...');
 
-            const wsUrl = `${CONFIG.wsBase}/ws/voice/${this.selectedVoiceId}`;
+            let wsUrl = `${CONFIG.wsBase}/ws/voice/${this.selectedVoiceId}`;
+            if (window.VENZIO_USER_TOKEN) {
+                wsUrl += `?token=${window.VENZIO_USER_TOKEN}`;
+            }
             this.ws = new WebSocket(wsUrl);
 
             this.ws.onopen = () => {

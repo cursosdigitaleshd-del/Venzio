@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
 
     # Service URLs
-    stt_service_url: str = "http://localhost:8001"
-    tts_service_url: str = "http://localhost:8002"
+    stt_service_url: str = "http://stt-service:8001"
+    tts_service_url: str = "http://tts-service:8002"
 
     # Database
     database_url: str = "sqlite:///./venzio.db"
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     max_global_sessions: int = 10
 
     # STT
-    whisper_model: str = "base"
+    whisper_model: str = "small"
     whisper_language: str = "es"
 
     # TTS defaults (for DB seed)

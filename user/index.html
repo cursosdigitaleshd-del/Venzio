@@ -51,6 +51,7 @@
             font-weight: 700;
             background: linear-gradient(135deg, var(--primary), var(--accent));
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -382,9 +383,26 @@
 
                 <div class="card widget-section">
                     <h2>Agente de Voz</h2>
-                    <div class="widget-demo">
-                        <p>Accede a tu agente de voz personalizado integrado en tu sitio web.</p>
-                        <button class="btn-secondary" onclick="openWidget()">Ver demo del widget</button>
+                    <p>Accede a tu agente de voz personalizado integrado en tu sitio web.</p>
+
+                    <!-- Master Prompt Display -->
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>Tu Prompt Maestro (solo lectura)</label>
+                        <textarea id="master-prompt" readonly rows="4" style="width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; outline: none; resize: vertical;"></textarea>
+                    </div>
+
+                    <!-- Embed Code Section -->
+                    <div style="margin-top: 20px;">
+                        <label style="display: block; font-size: 14px; font-weight: 500; color: var(--text-muted); margin-bottom: 8px;">Código para integrar en tu sitio web</label>
+                        <div id="embed-code" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: 'Courier New', monospace; font-size: 11px; color: var(--text); margin-bottom: 12px; white-space: pre-wrap; word-break: break-all;"></div>
+                        <button class="btn-secondary" onclick="copyEmbedCode()" style="width: 100%;">Copiar código</button>
+                        <div id="copy-status" style="margin-top: 8px; font-size: 12px; color: var(--text-muted);"></div>
+                    </div>
+
+                    <!-- Widget Demo -->
+                    <div class="widget-demo" style="margin-top: 20px;">
+                        <p style="margin-bottom: 16px;">Prueba tu widget aquí mismo:</p>
+                        <div id="widget-container"></div>
                     </div>
                 </div>
             </div>
@@ -412,6 +430,7 @@
                     userData = await response.json();
                     populateProfile(userData);
                     updateUI(userData);
+                    setupWidget(userData);
                 } else {
                     logout();
                 }
@@ -540,7 +559,86 @@
             localStorage.removeItem('venzio_token');
             window.location.href = '/login/';
         }
+        
+        // Setup widget with user data
+        function setupWidget(user) {
+            // Show master prompt
+            const promptEl = document.getElementById('master-prompt');
+            promptEl.value = user.master_prompt || 'No tienes un prompt maestro configurado.';
 
+            // Generate embed code
+            const embedCode = generateEmbedCode(user);
+            document.getElementById('embed-code').textContent = embedCode;
+
+            // Load widget in demo container
+            loadWidget(user);
+        }
+
+        // Generate embed code for user's website
+        function generateEmbedCode(user) {
+            const baseUrl = window.location.origin;
+            return `<link rel="stylesheet" href="${baseUrl}/widget/widget.css" />
+<scr` + `ipt>
+  window.VENZIO_API = '${baseUrl}';
+  window.VENZIO_WS = 'wss://' + window.location.host;
+  window.VENZIO_NAME = 'Agente Venzio';
+  window.VENZIO_USER_ID = '${user.id}';
+  window.VENZIO_USER_TOKEN = '${token}';
+</scr` + `ipt>
+<scr` + `ipt src="${baseUrl}/widget/widget.js"></scr` + `ipt>`;
+        }
+
+        // Copy embed code to clipboard
+        async function copyEmbedCode() {
+            const code = document.getElementById('embed-code').textContent;
+            const statusEl = document.getElementById('copy-status');
+
+            try {
+                await navigator.clipboard.writeText(code);
+                statusEl.textContent = '✅ Código copiado al portapapeles';
+                statusEl.style.color = 'var(--success)';
+                setTimeout(() => {
+                    statusEl.textContent = '';
+                }, 3000);
+            } catch (e) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = code;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                statusEl.textContent = '✅ Código copiado al portapapeles';
+                statusEl.style.color = 'var(--success)';
+                setTimeout(() => {
+                    statusEl.textContent = '';
+                }, 3000);
+            }
+        }
+
+        // Load full widget in dashboard
+        function loadWidget(user) {
+            // Load widget CSS
+            if (!document.getElementById('vz-styles')) {
+                const link = document.createElement('link');
+                link.id = 'vz-styles';
+                link.rel = 'stylesheet';
+                link.href = '/widget/widget.css';
+                document.head.appendChild(link);
+            }
+
+            // Set global variables
+            window.VENZIO_API = window.location.origin;
+            window.VENZIO_WS = 'ws://' + window.location.host;
+            window.VENZIO_NAME = 'Agente Venzio';
+            window.VENZIO_USER_ID = user.id;
+            window.VENZIO_USER_TOKEN = token;
+
+            // Load widget JS
+            const script = document.createElement('script');
+            script.src = '/widget/widget.js';
+            document.body.appendChild(script);
+        }
         // Load data on page load
         loadUserData();
         loadPayments();

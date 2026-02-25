@@ -28,6 +28,7 @@ class WhisperTranscriber:
             model_name,
             device="cpu",
             compute_type="int8",           # Óptimo para CPU
+            cpu_threads=2,
             download_root=model_path,
         )
         self.language = settings.whisper_language  # "es"
