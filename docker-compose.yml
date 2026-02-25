@@ -9,7 +9,8 @@ services:
     depends_on:
       - stt-service
       - tts-service
-
+    ports:
+          - "8000:8000"
   stt-service:
     build:
       context: ./stt-service
