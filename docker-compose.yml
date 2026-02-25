@@ -9,7 +9,7 @@ services:
     depends_on:
       - stt-service
       - tts-service
-    ports:
+    expose:
           - "8000:8000"
   stt-service:
     build:
