@@ -1,53 +1,31 @@
-version: "3.9"
-
 services:
   fastapi-core:
     build:
       context: ./fastapi-core
       dockerfile: Dockerfile
-    container_name: venzio-core
     restart: unless-stopped
-    ports:
-      - "8000:8000"   # SOLO este puerto se expone
     env_file:
       - .env
     depends_on:
       - stt-service
       - tts-service
-    deploy:
-      resources:
-        limits:
-          cpus: "1.5"
-          memory: 1500M
 
   stt-service:
     build:
       context: ./stt-service
       dockerfile: Dockerfile
-    container_name: venzio-stt
     restart: unless-stopped
     expose:
-      - "8001"   # Solo interno
+      - "8001"
     env_file:
       - .env
-    deploy:
-      resources:
-        limits:
-          cpus: "2"
-          memory: 3G
 
   tts-service:
     build:
       context: ./tts-service
       dockerfile: Dockerfile
-    container_name: venzio-tts
     restart: unless-stopped
     expose:
-      - "8002"   # Solo interno
+      - "8002"
     env_file:
       - .env
-    deploy:
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
