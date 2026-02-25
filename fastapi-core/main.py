@@ -143,8 +143,9 @@ app = FastAPI(
     description="Plataforma SaaS de agente vendedor por voz con STT, TTS y GPT-4o mini",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
 )
 
 # CORS
@@ -157,13 +158,13 @@ app.add_middleware(
 )
 
 # Routers
-app.include_router(auth_router)
-app.include_router(sessions_router)
+app.include_router(auth_router, prefix="/api")
+app.include_router(sessions_router, prefix="/api")
 app.include_router(admin_router)
-app.include_router(plans_router)
-app.include_router(voices_router)
-app.include_router(webhook_router)
-app.include_router(users_router)
+app.include_router(plans_router, prefix="/api")
+app.include_router(voices_router, prefix="/api")
+app.include_router(webhook_router, prefix="/api")
+app.include_router(users_router, prefix="/api")
 
 
 @app.get("/health", tags=["Sistema"])

@@ -1,7 +1,6 @@
 FROM nginx:alpine
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 # Copiar archivos estáticos
-COPY admin /usr/share/nginx/html/admin
 COPY contact /usr/share/nginx/html/contact
 COPY login /usr/share/nginx/html/login
 COPY prices /usr/share/nginx/html/prices

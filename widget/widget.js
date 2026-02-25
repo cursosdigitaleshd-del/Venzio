@@ -10,8 +10,8 @@
 
     // ── Config (can be overridden via data attributes on <script> tag) ──────────
     const CONFIG = {
-        apiBase: window.VENZIO_API || 'http://localhost:8000',
-        wsBase: window.VENZIO_WS || 'ws://localhost:8000',
+        apiBase: window.VENZIO_API || '/api',
+        wsBase: window.VENZIO_WS || 'ws://localhost',
         agentName: window.VENZIO_NAME || 'Agente Venzio',
         autoOpen: false,
         // VAD Configuration
@@ -71,7 +71,7 @@
                 const link = document.createElement('link');
                 link.id = 'vz-styles';
                 link.rel = 'stylesheet';
-                link.href = CONFIG.apiBase.replace(/\/$/, '') + '/widget/widget.css';
+                link.href = '/widget/widget.css';
                 document.head.appendChild(link);
             }
 
