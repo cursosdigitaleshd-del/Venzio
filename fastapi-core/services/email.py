@@ -36,9 +36,9 @@ Este mensaje fue enviado desde el formulario de contacto de Venzio.
 
         msg.attach(MIMEText(body, 'plain'))
 
-        # Conectar al servidor SMTP con SSL/TLS
-        context = ssl.create_default_context()
-        server = smtplib.SMTP_SSL(settings.smtp_server, settings.smtp_port, context=context)
+        # Conectar al servidor SMTP con STARTTLS
+        server = smtplib.SMTP(settings.smtp_server, settings.smtp_port)
+        server.starttls()  # Inicia encriptación TLS
         server.login(settings.smtp_username, settings.smtp_password)
 
         # Enviar email

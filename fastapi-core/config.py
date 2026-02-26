@@ -43,8 +43,8 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://localhost,http://localhost:3000"
 
     # Email settings
-    smtp_server: str = "alphasoft.com.py"
-    smtp_port: int = 465
+    smtp_server: str = "smtp.gmail.com"
+    smtp_port: int = 587
     smtp_username: str = ""
     smtp_password: str = ""
     contact_email: str = "alphasoftpy@gmail.com"
