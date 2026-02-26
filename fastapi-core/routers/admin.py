@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -75,6 +76,12 @@ class PaymentOut(BaseModel):
     plan_id: int | None
     created_by: int
     model_config = {"from_attributes": True}
+
+
+# ── Root ──────────────────────────────────────────────────────────────────────
+@router.get("/")
+def admin_root():
+    return RedirectResponse(url="/admin/index.html")
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────

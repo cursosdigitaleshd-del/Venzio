@@ -422,7 +422,7 @@
         // Load user data
         async function loadUserData() {
             try {
-                const response = await fetch(`${API_BASE}/users/me`, {
+                const response = await fetch(`${API_BASE}/api/users/me`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -475,7 +475,7 @@
         // Load payments
         async function loadPayments() {
             try {
-                const response = await fetch(`${API_BASE}/users/me/payments`, {
+                const response = await fetch(`${API_BASE}/api/users/me/payments`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -528,7 +528,7 @@
             };
 
             try {
-                const response = await fetch(`${API_BASE}/users/me`, {
+                const response = await fetch(`${API_BASE}/api/users/me`, {
                     method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${token}`,
