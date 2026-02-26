@@ -43,10 +43,10 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://localhost,http://localhost:3000"
 
     # Email settings
-    smtp_server: str = "p3plzcpnl480470.prod.phx3.secureserver.net"
+    smtp_server: str = "alphasoft.com.py"
     smtp_port: int = 465
-    smtp_username: str = "info@venzio.online"
-    smtp_password: str = "alphaSoftware!"
+    smtp_username: str = ""
+    smtp_password: str = ""
     contact_email: str = "alphasoftpy@gmail.com"
 
     @property
