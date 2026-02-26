@@ -441,17 +441,35 @@
                 message: document.getElementById('message').value.trim(),
             };
 
+            // Validate required fields
+            if (!data.name || !data.email || !data.subject || !data.message) {
+                alert('Por favor completa todos los campos.');
+                return;
+            }
+
             // Disable button
             submitBtn.disabled = true;
             submitBtn.textContent = 'Enviando...';
 
             try {
-                // For now, just simulate sending
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+                // Send to API
+                const response = await fetch('/api/contact/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                });
 
-                successEl.style.display = 'block';
-                e.target.reset();
+                if (response.ok) {
+                    successEl.style.display = 'block';
+                    e.target.reset();
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Error al enviar mensaje');
+                }
             } catch (error) {
+                console.error('Error:', error);
                 alert('Error al enviar mensaje. Inténtalo de nuevo.');
             } finally {
                 submitBtn.disabled = false;

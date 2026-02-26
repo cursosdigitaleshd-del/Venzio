@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     # CORS
     allowed_origins: str = "http://localhost,http://localhost:3000"
 
+    # Email settings
+    smtp_server: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_username: str = "info@venzio.online"
+    smtp_password: str = "alphaSoftware!"
+    contact_email: str = "alphasoftpy@gmail.com"
+
     @property
     def allowed_origins_list(self) -> List[str]:
         return [o.strip() for o in self.allowed_origins.split(",")]
