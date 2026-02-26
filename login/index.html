@@ -208,7 +208,7 @@
             submitBtn.textContent = 'Iniciando sesión...';
 
             try {
-                const response = await fetch(`${API_BASE}/auth/token`, {
+                const response = await fetch(`${API_BASE}/api/auth/token`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
