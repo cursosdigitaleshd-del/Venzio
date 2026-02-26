@@ -7,6 +7,7 @@ COPY prices /usr/share/nginx/html/prices
 COPY register /usr/share/nginx/html/register
 COPY user /usr/share/nginx/html/user
 COPY widget /usr/share/nginx/html/widget
+COPY admin /usr/share/nginx/html/admin
 COPY index.html /usr/share/nginx/html/index.html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
