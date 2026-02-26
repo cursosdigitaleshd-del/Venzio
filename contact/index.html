@@ -465,12 +465,13 @@
                     successEl.style.display = 'block';
                     e.target.reset();
                 } else {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Error al enviar mensaje');
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMessage = errorData.detail || 'Error al enviar mensaje. Inténtalo de nuevo.';
+                    throw new Error(errorMessage);
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error al enviar mensaje. Inténtalo de nuevo.');
+                alert(error.message || 'Error al enviar mensaje. Inténtalo de nuevo.');
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Enviar Mensaje';

@@ -22,7 +22,7 @@ async def send_contact_message(payload: ContactRequest):
     Envía un mensaje de contacto por email.
     """
     try:
-        success = await send_contact_email(
+        success, error_msg = await send_contact_email(
             name=payload.name,
             email=payload.email,
             subject=payload.subject,
@@ -31,12 +31,15 @@ async def send_contact_message(payload: ContactRequest):
 
         if not success:
             raise HTTPException(
-                status_code=500,
-                detail="Error al enviar el mensaje. Inténtalo de nuevo."
+                status_code=400,
+                detail=error_msg
             )
 
         return {"message": "Mensaje enviado exitosamente"}
 
+    except HTTPException:
+        # Re-lanzar excepciones HTTP ya manejadas
+        raise
     except Exception as e:
         logger.error(f"Error en endpoint de contacto: {e}")
         raise HTTPException(
