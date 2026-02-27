@@ -169,7 +169,7 @@
         // ── Load Voices from API ───────────────────────────────────────────────────
         async _loadVoices() {
             try {
-                const res = await fetch(`${CONFIG.apiBase}/voices`);
+                const res = await fetch(`${CONFIG.apiBase}/public/voices`);
                 if (!res.ok) throw new Error('API error');
                 this.voices = await res.json();
                 const sel = this.$voiceSel;
