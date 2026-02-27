@@ -162,6 +162,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api")
 app.include_router(sessions_router, prefix="/api")
 app.include_router(admin_router)
+app.include_router(admin_router, prefix="/api")
 app.include_router(plans_router, prefix="/api")
 app.include_router(voices_router, prefix="/api")
 app.include_router(webhook_router, prefix="/api")
