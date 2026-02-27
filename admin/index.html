@@ -1002,7 +1002,7 @@
     <script>
         // ── Config ──────────────────────────────────────────────────────────────────
         const API = window.VENZIO_ADMIN_API || 'http://localhost:8000';
-        let token = localStorage.getItem('vz_token');
+        let token = localStorage.getItem('venzio_token');
 
         // ── Auth ─────────────────────────────────────────────────────────────────────
         async function login(email, password) {
@@ -1014,7 +1014,7 @@
         }
 
         function logout() {
-            localStorage.removeItem('vz_token');
+            localStorage.removeItem('venzio_token');
             token = null;
             document.getElementById('app').style.display = 'none';
             document.getElementById('login-screen').style.display = 'flex';
@@ -1042,7 +1042,7 @@
                 const data = await login(email, pass);
                 if (!data.user.is_admin) throw new Error('No eres admin');
                 token = data.access_token;
-                localStorage.setItem('vz_token', token);
+                localStorage.setItem('venzio_token', token);
                 document.getElementById('user-email-display').textContent = data.user.email;
                 document.getElementById('user-initial').textContent = data.user.email[0].toUpperCase();
                 window.VENZIO_USER_DATA = data.user; // Store user data for widget
