@@ -2,12 +2,13 @@ import json
 import secrets
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException
 from sqlalchemy.orm import Session
 
+from auth import decode_token
 from concurrency import session_manager
 from database import get_db
-from models import Voice, VoiceSession
+from models import Voice, VoiceSession, User
 from services import llm, stt_client, tts_client
 
 router = APIRouter(tags=["Public WebSocket"])
@@ -18,13 +19,38 @@ router = APIRouter(tags=["Public WebSocket"])
 async def public_voice_session(
     websocket: WebSocket,
     voice_id: int,
+    token: str | None = None,
     db: Session = Depends(get_db),
 ):
     """
-    WebSocket público para el widget - no requiere autenticación.
+    WebSocket público para el widget - acepta token opcional para usuarios autenticados.
     Pipeline: Cliente → audio → STT → LLM → TTS → audio → Cliente
     """
     await websocket.accept()
+
+    # Parsear usuario opcional desde query parameter token
+    user = None
+    master_prompt = None
+    if token:
+        try:
+            payload = decode_token(token)
+            user_id = payload.get("sub")
+            if user_id:
+                user = db.get(User, int(user_id))
+                if user and user.is_active:
+                    # Verificar suscripción activa o si es admin
+                    now = datetime.now(timezone.utc)
+                    has_active_subscription = user.subscription_end_date and user.subscription_end_date.replace(tzinfo=timezone.utc) > now
+                    if has_active_subscription or user.is_admin:
+                        master_prompt = user.master_prompt
+                    else:
+                        await websocket.send_text(json.dumps({"type": "error", "message": "Suscripción expirada. Contacte soporte."}))
+                        await websocket.close()
+                        return
+                else:
+                    user = None
+        except Exception:
+            pass  # Invalid token, continue as anonymous
 
     # Buscar voz activa
     voice = db.get(Voice, voice_id)
@@ -43,10 +69,11 @@ async def public_voice_session(
         await websocket.close()
         return
 
-    # Registrar sesión en DB (sin usuario)
+    # Registrar sesión en DB
     db_session = VoiceSession(
         session_token=session_token,
         voice_id=voice_id,
+        user_id=user.id if user else None,
         status="active",
     )
     db.add(db_session)
