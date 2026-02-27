@@ -5,6 +5,7 @@ from loguru import logger
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 # Add project root to path for imports
 sys.path.insert(0, os.path.dirname(__file__))
@@ -161,13 +162,17 @@ app.add_middleware(
 # Routers
 app.include_router(auth_router, prefix="/api")
 app.include_router(sessions_router, prefix="/api")
-app.include_router(admin_router)
 app.include_router(admin_router, prefix="/api")
 app.include_router(plans_router, prefix="/api")
 app.include_router(voices_router, prefix="/api")
 app.include_router(webhook_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(contact_router, prefix="/api")
+
+
+@app.get("/admin/", tags=["Admin"])
+def admin_redirect():
+    return RedirectResponse(url="/admin/index.html")
 
 
 @app.get("/health", tags=["Sistema"])
