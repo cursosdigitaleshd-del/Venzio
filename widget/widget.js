@@ -51,6 +51,11 @@
             this.isOpen = false;
             this.sessionActive = false;
 
+            // Audio streaming properties
+            this.audioQueue = [];
+            this.isPlaying = false;
+            this.currentSource = null;
+
             // VAD properties
             this.vadInterval = null;
             this.silenceTimer = null;
@@ -223,8 +228,8 @@
 
             this.ws.onmessage = async (event) => {
                 if (event.data instanceof Blob) {
-                    // Audio response from TTS
-                    await this._playAudio(event.data);
+                    // Audio response from TTS - usar cola
+                    await this.enqueueAudio(event.data);
                 } else {
                     const msg = JSON.parse(event.data);
                     this._handleServerMessage(msg);
@@ -346,7 +351,73 @@
             }
         }
 
-        // ── Audio Playback ─────────────────────────────────────────────────────────
+        // ── Audio Context Initialization ───────────────────────────────────────────
+        _initAudioContext() {
+            if (!this.audioCtx) {
+                this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // ── Audio Queue System ────────────────────────────────────────────────────
+        async enqueueAudio(blob) {
+            this._initAudioContext(); // Garantizar contexto
+
+            this.audioQueue.push(blob);
+
+            if (!this.isPlaying) {
+                this.isPlaying = true;
+                this._playNext();
+            }
+        }
+
+        async _playNext() {
+            if (this.audioQueue.length === 0) {
+                this.isPlaying = false;
+                return;
+            }
+
+            const blob = this.audioQueue.shift();
+
+            try {
+                const arrayBuffer = await blob.arrayBuffer();
+                const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
+
+                const source = this.audioCtx.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(this.audioCtx.destination);
+
+                this.currentSource = source;
+
+                source.onended = () => {
+                    this.currentSource = null;
+                    this._playNext();
+                };
+
+                source.start(0);
+
+            } catch (err) {
+                console.error("Audio decode error:", err);
+                this._playNext(); // Continuar con siguiente, no bloquear cola
+            }
+        }
+
+        // ── Audio Control ──────────────────────────────────────────────────────────
+        stopAudio() {
+            this.audioQueue = [];
+
+            if (this.currentSource) {
+                try {
+                    this.currentSource.stop();
+                } catch (e) {
+                    // Ignore if already stopped
+                }
+                this.currentSource = null;
+            }
+
+            this.isPlaying = false;
+        }
+
+        // ── Legacy Audio Playback (for compatibility) ─────────────────────────────
         async _playAudio(blob) {
             await new Promise(resolve => setTimeout(resolve, CONFIG.humanDelay));
 
