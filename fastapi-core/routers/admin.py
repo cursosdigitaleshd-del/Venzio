@@ -9,7 +9,7 @@ from concurrency import session_manager
 from database import get_db
 from models import Payment, Plan, User, Voice, VoiceSession, UsageLog
 
-router = APIRouter(prefix="/admin", tags=["Admin"])
+router = APIRouter(tags=["Admin"])
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
