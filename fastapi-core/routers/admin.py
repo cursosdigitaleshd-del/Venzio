@@ -84,6 +84,12 @@ def admin_root():
     return RedirectResponse(url="/admin/index.html")
 
 
+# ── Me ────────────────────────────────────────────────────────────────────────
+@router.get("/me")
+def get_me(current_admin=Depends(get_current_admin)):
+    return current_admin
+
+
 # ── Stats ─────────────────────────────────────────────────────────────────────
 @router.get("/stats")
 def get_stats(
