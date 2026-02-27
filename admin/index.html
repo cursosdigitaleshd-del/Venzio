@@ -989,7 +989,9 @@
     <link rel="stylesheet" href="/widget/widget.css" />
     <script>
       window.VENZIO_API = '/api';
-      window.VENZIO_WS = 'ws://' + window.location.host;
+      window.VENZIO_WS =
+        (window.location.protocol === 'https:' ? 'wss://' : 'ws://')
+        + window.location.host;
       window.VENZIO_ADMIN_API = window.location.origin + '/api';
       window.VENZIO_NAME = 'Agente Venzio';
       if (window.VENZIO_USER_DATA) {
