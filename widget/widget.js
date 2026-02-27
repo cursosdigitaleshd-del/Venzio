@@ -213,7 +213,7 @@
             this._setState(STATES.CONNECTING);
             this._setStatus('Conectando...');
 
-            let wsUrl = `${CONFIG.wsBase}/ws/voice/${this.selectedVoiceId}`;
+            let wsUrl = `${CONFIG.wsBase}/ws/public/voice/${this.selectedVoiceId}`;
             if (window.VENZIO_USER_TOKEN) {
                 wsUrl += `?token=${window.VENZIO_USER_TOKEN}`;
             }

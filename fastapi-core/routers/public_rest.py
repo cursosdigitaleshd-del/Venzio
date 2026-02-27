@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from database import get_db
 from models import Voice
 
-router = APIRouter(tags=["Public"])
+router = APIRouter(tags=["Public REST"])
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
