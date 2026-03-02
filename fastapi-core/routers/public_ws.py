@@ -125,9 +125,13 @@ async def public_voice_session(
                     json.dumps({"type": "transcript", "text": user_text})
                 )
 
-                # 2. LLM
+                # 2. LLM — usar prompt del cliente si existe
                 conversation_history.append({"role": "user", "content": user_text})
-                reply_text = await llm.chat_completion(conversation_history)
+                system_prompt = llm.build_system_prompt(master_prompt)
+                reply_text = await llm.chat_completion(
+                    conversation_history,
+                    system_prompt=system_prompt,
+                )
                 conversation_history.append({"role": "assistant", "content": reply_text})
                 full_transcript_parts.append(f"Agente: {reply_text}")
 

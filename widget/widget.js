@@ -15,12 +15,12 @@
         agentName: window.VENZIO_NAME || 'Agente Venzio',
         autoOpen: false,
         // VAD Configuration
-        vadThreshold: -55, // dB threshold for voice detection (very sensitive)
-        vadMinDuration: 200, // ms minimum duration to confirm speaking
-        vadSilenceTimeout: 350, // ms silence to send audio (increased)
-        vadLongSilence: 10000, // ms long silence for AI intervention
-        vadInactivityTimeout: 30000, // ms total inactivity to close (increased)
-        vadMaxSpeakingTime: 8000, // ms max speaking time to force send
+        vadThreshold: -40,        // dB threshold — menos sensible al ruido de fondo
+        vadMinDuration: 300,      // ms para confirmar que es voz real (evita clics / tos)
+        vadSilenceTimeout: 700,   // ms de silencio antes de cortar (más natural)
+        vadLongSilence: 10000,    // ms largo silencio para intervención IA
+        vadInactivityTimeout: 30000, // ms inactividad total para cerrar sesión
+        vadMaxSpeakingTime: 15000, // ms máx de habla continua antes de forzar envío
         humanDelay: 150, // ms delay before AI response
     };
 

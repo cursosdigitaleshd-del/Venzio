@@ -5,13 +5,32 @@ from config import settings
 
 client = AsyncOpenAI(api_key=settings.openai_api_key)
 
-# System prompt base para el agente vendedor
-BASE_SYSTEM_PROMPT = """Eres un agente de ventas profesional, amigable y eficiente que habla por teléfono.
-Tu objetivo es entender las necesidades del cliente, presentar los productos/servicios de forma clara,
-resolver dudas y guiar hacia el cierre de venta.
-Responde siempre en español, de forma natural y conversacional.
-Sé conciso (máximo 2-3 oraciones por respuesta) porque el usuario está escuchando por audio.
-No uses listas, puntos o formato markdown – solo texto natural para ser sintetizado en voz."""
+# Instrucciones base que SIEMPRE se aplican — no negociables
+BASE_INSTRUCTIONS = """Eres un agente de ventas virtual que habla por teléfono en representación de un negocio específico.
+
+REGLAS ESTRICTAS:
+1. Responde ÚNICAMENTE sobre el negocio, producto o servicio para el que fuiste configurado.
+2. Si el usuario pregunta algo fuera de tu área o rol (política, recetas, tecnología ajena, etc.), redirígelo amablemente: reconoce la pregunta pero devuelve la conversación a tu propósito.
+3. NO inventes datos, precios, características, fechas ni información que no esté en tu configuración. Si no sabes algo, dilo honestamente y ofrece derivar al equipo humano.
+4. Mantén siempre un tono profesional, cálido y orientado a ayudar al cliente a tomar una buena decisión.
+5. Responde en español, de forma natural y conversacional.
+6. Sé conciso (máximo 2-3 oraciones por respuesta) — el usuario escucha por audio.
+7. No uses listas, puntos ni formato markdown — solo texto natural para ser sintetizado en voz."""
+
+
+def build_system_prompt(master_prompt: str | None = None) -> str:
+    """
+    Construye el system prompt final combinando las instrucciones base
+    con el prompt maestro específico del cliente.
+    Si no hay master_prompt, usa solo las instrucciones base genéricas.
+    """
+    if master_prompt and master_prompt.strip():
+        return (
+            BASE_INSTRUCTIONS
+            + "\n\n=== TU ROL Y NEGOCIO ESPECÍFICO ===\n"
+            + master_prompt.strip()
+        )
+    return BASE_INSTRUCTIONS
 
 
 async def chat_completion(
@@ -30,7 +49,7 @@ async def chat_completion(
     Returns:
         string con la respuesta del LLM
     """
-    system = system_prompt or BASE_SYSTEM_PROMPT
+    system = system_prompt or BASE_INSTRUCTIONS
     full_messages = [{"role": "system", "content": system}] + messages
 
     try:

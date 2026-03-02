@@ -388,14 +388,20 @@
                     <!-- Master Prompt Display -->
                     <div class="form-group" style="margin-top: 20px;">
                         <label>Tu Prompt Maestro (solo lectura)</label>
-                        <textarea id="master-prompt" readonly rows="4" style="width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; outline: none; resize: vertical;"></textarea>
+                        <textarea id="master-prompt" readonly rows="4"
+                            style="width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; outline: none; resize: vertical;"></textarea>
                     </div>
 
                     <!-- Embed Code Section -->
                     <div style="margin-top: 20px;">
-                        <label style="display: block; font-size: 14px; font-weight: 500; color: var(--text-muted); margin-bottom: 8px;">Código para integrar en tu sitio web</label>
-                        <div id="embed-code" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: 'Courier New', monospace; font-size: 11px; color: var(--text); margin-bottom: 12px; white-space: pre-wrap; word-break: break-all;"></div>
-                        <button class="btn-secondary" onclick="copyEmbedCode()" style="width: 100%;">Copiar código</button>
+                        <label
+                            style="display: block; font-size: 14px; font-weight: 500; color: var(--text-muted); margin-bottom: 8px;">Código
+                            para integrar en tu sitio web</label>
+                        <div id="embed-code"
+                            style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: 'Courier New', monospace; font-size: 11px; color: var(--text); margin-bottom: 12px; white-space: pre-wrap; word-break: break-all;">
+                        </div>
+                        <button class="btn-secondary" onclick="copyEmbedCode()" style="width: 100%;">Copiar
+                            código</button>
                         <div id="copy-status" style="margin-top: 8px; font-size: 12px; color: var(--text-muted);"></div>
                     </div>
 
@@ -559,7 +565,7 @@
             localStorage.removeItem('venzio_token');
             window.location.href = '/login/';
         }
-        
+
         // Setup widget with user data
         function setupWidget(user) {
             // Show master prompt
@@ -628,8 +634,8 @@
             }
 
             // Set global variables
-            window.VENZIO_API = window.location.origin;
-            window.VENZIO_WS = 'ws://' + window.location.host;
+            window.VENZIO_API = window.location.origin + '/api';
+            window.VENZIO_WS = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host;
             window.VENZIO_NAME = 'Agente Venzio';
             window.VENZIO_USER_ID = user.id;
             window.VENZIO_USER_TOKEN = token;
