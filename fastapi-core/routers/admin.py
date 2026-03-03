@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from datetime import datetime, timedelta
 from auth import get_current_admin
@@ -41,6 +42,11 @@ class AdminUserOut(BaseModel):
     is_active: bool
     is_admin: bool
     site_id: str | None  # Solo para admin
+    plan_name: str | None
+    plan_status: str
+    plan_max_minutes: int
+    usage_this_month: float
+    renewal_date: datetime | None
     model_config = {"from_attributes": True}
 
 
@@ -146,10 +152,31 @@ def get_me(current_admin=Depends(get_current_admin), db: Session = Depends(get_d
             db.rollback()
             site = None
 
+    # Calcular consumo del mes
+    now = datetime.utcnow()
+    start_of_month = datetime(now.year, now.month, 1)
+    usage_this_month = db.query(
+        func.coalesce(func.sum(UsageLog.minutes_used), 0)
+    ).filter(
+        UsageLog.user_id == current_admin.id,
+        UsageLog.date >= start_of_month.strftime('%Y-%m-%d')
+    ).scalar()
+
+    # Datos del plan
+    plan_name = current_admin.plan.name if current_admin.plan else None
+    plan_max_minutes = current_admin.plan.max_minutes if current_admin.plan else 0
+    renewal_date = current_admin.subscription_end_date
+    plan_status = "active" if current_admin.is_active and current_admin.plan else "inactive"
+
     user_dict = current_admin.__dict__.copy()
     user_dict.pop('_sa_instance_state', None)
 
     user_dict['site_id'] = site.site_id if site else None
+    user_dict['plan_name'] = plan_name
+    user_dict['plan_status'] = plan_status
+    user_dict['plan_max_minutes'] = plan_max_minutes
+    user_dict['usage_this_month'] = usage_this_month
+    user_dict['renewal_date'] = renewal_date
 
     return AdminUserOut.model_validate(user_dict)
 

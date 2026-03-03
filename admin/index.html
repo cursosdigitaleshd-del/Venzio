@@ -610,6 +610,23 @@
             }
         }
 
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #eee;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #2ecc71);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
         /* Hidden tabs */
         .tab-content {
             display: none;
@@ -731,6 +748,22 @@
 
                 <!-- ── STATS TAB ─────────────────────────────────────────── -->
                 <div class="tab-content active" id="tab-stats">
+                    <!-- Plan Card -->
+                    <div class="card" id="plan-card" style="margin-bottom:24px;">
+                        <div class="card-header">
+                            <h2>Mi Plan</h2>
+                        </div>
+                        <div style="padding:20px;">
+                            <p><strong>Plan:</strong> <span id="planName">Cargando...</span></p>
+                            <p><strong>Estado:</strong> <span id="planStatus">Cargando...</span></p>
+                            <p><strong>Renueva:</strong> <span id="renewalDate">Cargando...</span></p>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <p id="usageText">Cargando...</p>
+                        </div>
+                    </div>
+
                     <div class="stats-grid">
                         <div class="stat-card primary">
                             <div class="stat-label">Usuarios totales</div>
@@ -1163,6 +1196,7 @@
         function showApp(user) {
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('app').style.display = 'flex';
+            updatePlanDisplay(user);
             loadStats();
             loadVoices();
             loadUsers();
@@ -1170,6 +1204,18 @@
             loadPayments();
             loadSites();
             _loadWidgetOnce(user || window.VENZIO_USER_DATA || {});
+        }
+
+        // ── Update Plan Display ─────────────────────────────────────────────────────────
+        function updatePlanDisplay(user) {
+            document.getElementById('planName').textContent = user.plan_name || 'Sin plan';
+            document.getElementById('planStatus').textContent = user.plan_status === 'active' ? 'Activa' : 'Inactiva';
+            document.getElementById('renewalDate').textContent = user.renewal_date ? new Date(user.renewal_date).toLocaleDateString() : 'N/A';
+
+            const percent = user.plan_max_minutes > 0 ? (user.usage_this_month / user.plan_max_minutes) * 100 : 0;
+            const clampedPercent = Math.min(percent, 100);
+            document.getElementById('progressFill').style.width = clampedPercent + '%';
+            document.getElementById('usageText').innerText = `Consumo este mes: ${user.usage_this_month} / ${user.plan_max_minutes} minutos`;
         }
 
         // Auto-login if token exists
