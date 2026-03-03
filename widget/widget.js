@@ -16,12 +16,12 @@
         autoOpen: false,
         // VAD Configuration
         vadThreshold: -40,        // dB threshold — menos sensible al ruido de fondo
-        vadMinDuration: 300,      // ms para confirmar que es voz real (evita clics / tos)
-        vadSilenceTimeout: 700,   // ms de silencio antes de cortar (más natural)
+        vadMinDuration: 200,      // ms para confirmar que es voz real (evita clics / tos)
+        vadSilenceTimeout: 400,   // ms de silencio antes de cortar (más natural)
         vadLongSilence: 10000,    // ms largo silencio para intervención IA
         vadInactivityTimeout: 30000, // ms inactividad total para cerrar sesión
         vadMaxSpeakingTime: 15000, // ms máx de habla continua antes de forzar envío
-        humanDelay: 150, // ms delay before AI response
+        humanDelay: 100, // ms delay before AI response
     };
 
     // ── State Machine ────────────────────────────────────────────────────────────

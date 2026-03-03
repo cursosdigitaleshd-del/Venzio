@@ -1120,7 +1120,7 @@
                 document.getElementById('user-initial').textContent = data.user.email[0].toUpperCase();
 
                 // Obtener datos completos del usuario incluyendo site_id
-                const userData = await apiFetch('/me');
+                const userData = await apiFetch('/admin/me');
                 window.VENZIO_USER_DATA = userData; // Store complete user data for widget
                 showApp(userData);
             } catch (err) {
@@ -1174,7 +1174,7 @@
 
         // Auto-login if token exists
         if (token) {
-            apiFetch('/me').then(user => {
+            apiFetch('/admin/me').then(user => {
                 if (user && user.is_admin) {
                     document.getElementById('user-email-display').textContent = user.email;
                     document.getElementById('user-initial').textContent = user.email[0].toUpperCase();
