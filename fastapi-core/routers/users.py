@@ -2,10 +2,11 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from auth import get_current_user
 from database import get_db
-from models import Payment, User, WidgetSite
+from models import Payment, User, WidgetSite, UsageLog
 from urllib.parse import urlparse
 
 router = APIRouter(prefix="/users", tags=["Usuarios"])
@@ -32,6 +33,11 @@ class UserProfile(BaseModel):
     site_id: str | None = None
     is_active: bool
     is_admin: bool
+    plan_name: str | None
+    plan_status: str
+    plan_max_minutes: int
+    usage_this_month: float
+    renewal_date: datetime | None
     model_config = {"from_attributes": True}
 
 
@@ -70,11 +76,40 @@ def get_my_profile(
             domain_allowed=domain_allowed
         )
         db.add(site)
-        db.commit()
-    
-    # Inyectar site_id dinámicamente para que pydantic lo serialice
-    current_user.site_id = site.site_id
-    return current_user
+        try:
+            db.commit()
+            db.refresh(site)
+        except Exception:
+            db.rollback()
+            site = None
+
+    # Calcular consumo del mes
+    now = datetime.utcnow()
+    start_of_month = datetime(now.year, now.month, 1)
+    usage_this_month = db.query(
+        func.coalesce(func.sum(UsageLog.minutes_used), 0)
+    ).filter(
+        UsageLog.user_id == current_user.id,
+        UsageLog.date >= start_of_month.strftime('%Y-%m-%d')
+    ).scalar()
+
+    # Datos del plan
+    plan_name = current_user.plan.name if current_user.plan else None
+    plan_max_minutes = current_user.plan.max_minutes if current_user.plan else 0
+    renewal_date = current_user.subscription_end_date
+    plan_status = "active" if current_user.is_active and current_user.plan else "inactive"
+
+    user_dict = current_user.__dict__.copy()
+    user_dict.pop('_sa_instance_state', None)
+
+    user_dict['site_id'] = site.site_id if site else None
+    user_dict['plan_name'] = plan_name
+    user_dict['plan_status'] = plan_status
+    user_dict['plan_max_minutes'] = plan_max_minutes
+    user_dict['usage_this_month'] = usage_this_month
+    user_dict['renewal_date'] = renewal_date
+
+    return UserProfile.model_validate(user_dict)
 
 
 @router.put("/me", response_model=UserProfile)

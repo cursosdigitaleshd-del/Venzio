@@ -296,6 +296,23 @@
             color: var(--primary);
         }
 
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #eee;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #2ecc71);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .dashboard-grid {
@@ -374,11 +391,19 @@
 
             <!-- Sidebar -->
             <div>
-                <div class="subscription-info" id="subscription-info">
-                    <div class="subscription-status">
-                        <span class="status-badge status-active">Activa</span>
+                <div class="card" id="plan-card">
+                    <div class="card-header">
+                        <h2>Mi Plan</h2>
                     </div>
-                    <p id="subscription-text">Suscripción activa hasta: --</p>
+                    <div style="padding:20px;">
+                        <p><strong>Plan:</strong> <span id="planName">Cargando...</span></p>
+                        <p><strong>Estado:</strong> <span id="planStatus">Cargando...</span></p>
+                        <p><strong>Renueva:</strong> <span id="renewalDate">Cargando...</span></p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <p id="usageText">Cargando...</p>
+                    </div>
                 </div>
 
                 <div class="card widget-section">
@@ -457,25 +482,16 @@
             document.getElementById('welcome-message').textContent = `Bienvenido, ${user.full_name || user.email.split('@')[0]}`;
         }
 
-        // Update subscription UI
+        // Update plan UI
         function updateUI(user) {
-            const subscriptionEl = document.getElementById('subscription-info');
-            const statusEl = subscriptionEl.querySelector('.status-badge');
-            const textEl = document.getElementById('subscription-text');
+            document.getElementById('planName').textContent = user.plan_name || 'Sin plan';
+            document.getElementById('planStatus').textContent = user.plan_status === 'active' ? 'Activa' : 'Inactiva';
+            document.getElementById('renewalDate').textContent = user.renewal_date ? new Date(user.renewal_date).toLocaleDateString() : 'N/A';
 
-            if (user.subscription_end_date) {
-                const endDate = new Date(user.subscription_end_date);
-                const now = new Date();
-                const isActive = endDate > now;
-
-                statusEl.className = `status-badge ${isActive ? 'status-active' : 'status-expired'}`;
-                statusEl.textContent = isActive ? 'Activa' : 'Expirada';
-                textEl.textContent = `Suscripción ${isActive ? 'activa' : 'expirada'} hasta: ${endDate.toLocaleDateString()}`;
-            } else {
-                statusEl.className = 'status-badge status-expired';
-                statusEl.textContent = 'Sin suscripción';
-                textEl.textContent = 'No tienes una suscripción activa';
-            }
+            const percent = user.plan_max_minutes > 0 ? (user.usage_this_month / user.plan_max_minutes) * 100 : 0;
+            const clampedPercent = Math.min(percent, 100);
+            document.getElementById('progressFill').style.width = clampedPercent + '%';
+            document.getElementById('usageText').innerText = `Consumo este mes: ${user.usage_this_month} / ${user.plan_max_minutes} minutos`;
         }
 
         // Load payments
