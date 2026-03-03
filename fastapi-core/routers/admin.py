@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from auth import get_current_admin
 from concurrency import session_manager
 from database import get_db
-from models import Payment, Plan, User, Voice, VoiceSession, UsageLog
+from models import Payment, Plan, User, Voice, VoiceSession, UsageLog, WidgetSite
 
 router = APIRouter(tags=["Admin"])
 
@@ -64,6 +64,25 @@ class RegisterPayment(BaseModel):
 
 class UpdateUserPrompt(BaseModel):
     master_prompt: str
+
+
+class UpdateUserData(BaseModel):
+    full_name: str | None = None
+    phone: str | None = None
+    company_name: str | None = None
+    website: str | None = None
+
+
+class WidgetSiteOut(BaseModel):
+    id: int
+    user_id: int
+    user_email: str
+    user_name: str | None
+    site_id: str
+    domain_allowed: str
+    is_active: bool
+    created_at: datetime
+    model_config = {"from_attributes": True}
 
 
 class PaymentOut(BaseModel):
@@ -261,3 +280,48 @@ def list_all_payments(
     _admin=Depends(get_current_admin),
 ):
     return db.query(Payment).order_by(Payment.payment_date.desc()).all()
+
+
+@router.put("/users/{user_id}", response_model=UserOut)
+def update_user_data(
+    user_id: int,
+    payload: UpdateUserData,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    for field, value in payload.model_dump(exclude_none=True).items():
+        setattr(user, field, value)
+
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.get("/widget-sites", response_model=list[WidgetSiteOut])
+def list_widget_sites(
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    # Join con User para obtener email y nombre
+    from sqlalchemy.orm import joinedload
+    sites = db.query(WidgetSite).options(joinedload(WidgetSite.user)).all()
+
+    # Convertir a formato de respuesta
+    result = []
+    for site in sites:
+        result.append({
+            "id": site.id,
+            "user_id": site.user_id,
+            "user_email": site.user.email,
+            "user_name": site.user.full_name,
+            "site_id": site.site_id,
+            "domain_allowed": site.domain_allowed,
+            "is_active": site.is_active,
+            "created_at": site.created_at,
+        })
+
+    return result
