@@ -8,10 +8,10 @@
 (function (window, document) {
     'use strict';
 
-    // ── Config (can be overridden via data attributes on <script> tag) ──────────
+    // ── Config ──────────
     const CONFIG = {
-        apiBase: window.VENZIO_API || 'https://venzio.online/api',
-        wsBase: window.VENZIO_WS || 'wss://venzio.online',
+        apiBase: 'https://venzio.online/api',
+        wsBase: 'wss://venzio.online',
         agentName: window.VENZIO_NAME || 'Agente Venzio',
         autoOpen: false,
         // VAD Configuration
