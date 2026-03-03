@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from config import settings
 from database import init_db, SessionLocal
-from models import User, Plan, Voice
+from models import User, Plan, Voice, WidgetSite
 from auth import hash_password
 
 # ── Routers ───────────────────────────────────────────────────────────────────
@@ -101,6 +101,27 @@ def seed_database():
         db.commit()
     except Exception as e:
         logger.error(f"Error en admin seed: {e}")
+        db.rollback()
+
+    # ── WidgetSite para admin ─────────────────────────────────────────────────
+    try:
+        admin_user = db.query(User).filter(User.email == settings.admin_email).first()
+        if admin_user:
+            existing_site = db.query(WidgetSite).filter_by(user_id=admin_user.id).first()
+            if not existing_site:
+                widget_site = WidgetSite(
+                    user_id=admin_user.id,
+                    site_id=WidgetSite.generate_site_id(),
+                    secret_key=WidgetSite.generate_secret_key(),
+                    domain_allowed="venzio.online"
+                )
+                db.add(widget_site)
+                db.commit()
+                logger.info(f"WidgetSite creado para admin: {widget_site.site_id}")
+            else:
+                logger.info(f"WidgetSite ya existe para admin: {existing_site.site_id}")
+    except Exception as e:
+        logger.error(f"Error creando WidgetSite para admin: {e}")
         db.rollback()
 
     # ── Voz por defecto ───────────────────────────────────────────────────────
