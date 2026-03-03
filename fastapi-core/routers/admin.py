@@ -25,6 +25,7 @@ class UserOut(BaseModel):
     subscription_end_date: datetime | None
     is_active: bool
     is_admin: bool
+    site_id: str | None  # Agregar site_id
     model_config = {"from_attributes": True}
 
 
@@ -121,7 +122,11 @@ def get_me(current_admin=Depends(get_current_admin), db: Session = Depends(get_d
         )
         db.add(site)
         db.commit()
-    return current_admin
+
+    # Devolver usuario con site_id incluido
+    user_data = UserOut.model_validate(current_admin)
+    user_data.site_id = site.site_id
+    return user_data
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
