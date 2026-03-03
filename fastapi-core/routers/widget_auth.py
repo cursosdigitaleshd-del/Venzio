@@ -28,26 +28,33 @@ async def widget_auth(site_id: str, request: Request, db: Session = Depends(get_
     if not site:
         raise HTTPException(status_code=403, detail="site_id inválido o inactivo")
 
-    # 2. Validar Origin
+    # 2. Validar Origin / Same-origin
     origin = request.headers.get("origin")
+    host = request.url.hostname.lower()
+
+    # 1️⃣ Same-origin permitido (sin Origin header)
     if not origin:
-        raise HTTPException(status_code=403, detail="Origin header requerido")
+        if host in ["venzio.online", "www.venzio.online", "localhost", "127.0.0.1"]:
+            pass  # Permitido
+        else:
+            raise HTTPException(status_code=403, detail="Origin header requerido para dominios externos")
 
-    parsed_origin = urlparse(origin).netloc.lower()
-    
-    allowed_domains = {
-        site.domain_allowed.lower(),
-        "venzio.online",
-        "www.venzio.online",
-        "localhost:8000",
-        "127.0.0.1:8000"
-    }
+    # 2️⃣ Cross-origin → validar contra dominios del site
+    else:
+        parsed_origin = urlparse(origin).netloc.lower()
+        allowed_domains = {
+            site.domain_allowed.lower(),
+            "venzio.online",
+            "www.venzio.online",
+            "localhost:8000",
+            "127.0.0.1:8000"
+        }
 
-    if parsed_origin not in allowed_domains:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Dominio no autorizado: {parsed_origin}",
-        )
+        if parsed_origin not in allowed_domains:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Dominio no autorizado: {parsed_origin}",
+            )
 
     # 3. Generar JWT temporal (5 min, type="widget")
     token = create_widget_token(site_id=site.site_id, user_id=site.user_id)
