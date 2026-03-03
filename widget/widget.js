@@ -76,7 +76,7 @@
                 const link = document.createElement('link');
                 link.id = 'vz-styles';
                 link.rel = 'stylesheet';
-                link.href = '/widget/widget.css';
+                link.href = 'https://venzio.online/widget/widget.css';
                 document.head.appendChild(link);
             }
 
