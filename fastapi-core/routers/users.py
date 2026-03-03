@@ -54,16 +54,20 @@ def get_my_profile(
     # Buscar o crear WidgetSite para el usuario
     site = db.query(WidgetSite).filter_by(user_id=current_user.id, is_active=True).first()
     if not site:
-        domain = current_user.website or "midominio.com"
-        parsed = urlparse(domain).netloc.lower()
-        if not parsed:
-            parsed = domain.replace("http://", "").replace("https://", "").split("/")[0].lower()
-            
+        if current_user.is_admin:
+            domain_allowed = "venzio.online"
+        else:
+            domain = current_user.website or "midominio.com"
+            parsed = urlparse(domain).netloc.lower()
+            if not parsed:
+                parsed = domain.replace("http://", "").replace("https://", "").split("/")[0].lower()
+            domain_allowed = parsed
+
         site = WidgetSite(
             user_id=current_user.id,
             site_id=WidgetSite.generate_site_id(),
             secret_key=WidgetSite.generate_secret_key(),
-            domain_allowed=parsed
+            domain_allowed=domain_allowed
         )
         db.add(site)
         db.commit()
