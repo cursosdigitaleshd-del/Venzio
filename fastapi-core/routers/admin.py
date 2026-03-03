@@ -126,13 +126,32 @@ def admin_root():
 # ── Me ────────────────────────────────────────────────────────────────────────
 @router.get("/me", response_model=AdminUserOut)
 def get_me(current_admin=Depends(get_current_admin), db: Session = Depends(get_db)):
-    # Buscar WidgetSite existente para admin
-    site = db.query(WidgetSite).filter_by(user_id=current_admin.id, is_active=True).first()
+    site = db.query(WidgetSite).filter_by(
+        user_id=current_admin.id,
+        is_active=True
+    ).first()
 
-    # Devolver usuario con site_id incluido (None si no existe)
-    user_data = AdminUserOut.model_validate(current_admin)
-    user_data.site_id = site.site_id if site else None
-    return user_data
+    if not site:
+        site = WidgetSite(
+            user_id=current_admin.id,
+            site_id=WidgetSite.generate_site_id(),
+            secret_key=WidgetSite.generate_secret_key(),
+            domain_allowed="venzio.online"
+        )
+        db.add(site)
+        try:
+            db.commit()
+            db.refresh(site)
+        except Exception:
+            db.rollback()
+            site = None
+
+    user_dict = current_admin.__dict__.copy()
+    user_dict.pop('_sa_instance_state', None)
+
+    user_dict['site_id'] = site.site_id if site else None
+
+    return AdminUserOut.model_validate(user_dict)
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────

@@ -113,7 +113,7 @@ class WidgetSite(Base):
     __tablename__ = "widget_sites"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, unique=True)
     site_id: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     secret_key: Mapped[str] = mapped_column(String(64), nullable=False)
     domain_allowed: Mapped[str] = mapped_column(String(255), nullable=False)  # sin protocolo, ej: "midominio.com"
