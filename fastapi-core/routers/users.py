@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 
 from auth import get_current_user
 from database import get_db
-from models import Payment, User
+from models import Payment, User, WidgetSite
+from urllib.parse import urlparse
 
 router = APIRouter(prefix="/users", tags=["Usuarios"])
 
@@ -28,6 +29,7 @@ class UserProfile(BaseModel):
     master_prompt: str | None
     plan_id: int | None
     subscription_end_date: datetime | None
+    site_id: str | None = None
     is_active: bool
     is_admin: bool
     model_config = {"from_attributes": True}
@@ -45,7 +47,29 @@ class PaymentOut(BaseModel):
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 @router.get("/me", response_model=UserProfile)
-def get_my_profile(current_user: User = Depends(get_current_user)):
+def get_my_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Buscar o crear WidgetSite para el usuario
+    site = db.query(WidgetSite).filter_by(user_id=current_user.id, is_active=True).first()
+    if not site:
+        domain = current_user.website or "midominio.com"
+        parsed = urlparse(domain).netloc.lower()
+        if not parsed:
+            parsed = domain.replace("http://", "").replace("https://", "").split("/")[0].lower()
+            
+        site = WidgetSite(
+            user_id=current_user.id,
+            site_id=WidgetSite.generate_site_id(),
+            secret_key=WidgetSite.generate_secret_key(),
+            domain_allowed=parsed
+        )
+        db.add(site)
+        db.commit()
+    
+    # Inyectar site_id dinámicamente para que pydantic lo serialice
+    current_user.site_id = site.site_id
     return current_user
 
 

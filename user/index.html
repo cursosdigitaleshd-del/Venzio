@@ -582,14 +582,9 @@
 
         // Generate embed code for user's website
         function generateEmbedCode(user) {
-            const baseUrl = window.location.origin;
-            return `<link rel="stylesheet" href="${baseUrl}/widget/widget.css" />
-<scr` + `ipt>
-  window.VENZIO_API = '${baseUrl}';
-  window.VENZIO_WS = 'wss://' + window.location.host;
-  window.VENZIO_NAME = 'Agente Venzio';
-  window.VENZIO_USER_ID = '${user.id}';
-  window.VENZIO_USER_TOKEN = '${token}';
+            const baseUrl = 'https://venzio.online';
+            return `<scr` + `ipt>
+  window.VENZIO_SITE_ID = '${user.site_id}';
 </scr` + `ipt>
 <scr` + `ipt src="${baseUrl}/widget/widget.js"></scr` + `ipt>`;
         }
@@ -633,12 +628,8 @@
                 document.head.appendChild(link);
             }
 
-            // Set global variables
-            window.VENZIO_API = window.location.origin + '/api';
-            window.VENZIO_WS = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host;
-            window.VENZIO_NAME = 'Agente Venzio';
-            window.VENZIO_USER_ID = user.id;
-            window.VENZIO_USER_TOKEN = token;
+            // Set global variables - usar la nueva variante VENZIO_SITE_ID
+            window.VENZIO_SITE_ID = user.site_id;
 
             // Load widget JS
             const script = document.createElement('script');

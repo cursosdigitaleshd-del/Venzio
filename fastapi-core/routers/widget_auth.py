@@ -34,9 +34,16 @@ async def widget_auth(site_id: str, request: Request, db: Session = Depends(get_
         raise HTTPException(status_code=403, detail="Origin header requerido")
 
     parsed_origin = urlparse(origin).netloc.lower()
-    domain_allowed = site.domain_allowed.lower()
+    
+    allowed_domains = {
+        site.domain_allowed.lower(),
+        "venzio.online",
+        "www.venzio.online",
+        "localhost:8000",
+        "127.0.0.1:8000"
+    }
 
-    if parsed_origin != domain_allowed:
+    if parsed_origin not in allowed_domains:
         raise HTTPException(
             status_code=403,
             detail=f"Dominio no autorizado: {parsed_origin}",

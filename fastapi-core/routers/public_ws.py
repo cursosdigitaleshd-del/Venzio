@@ -47,8 +47,16 @@ async def public_voice_session(
         WidgetSite.site_id == payload["sid"],
         WidgetSite.is_active == True,
     ).first()
+    
+    allowed_domains = {
+        site.domain_allowed.lower() if site else "",
+        "venzio.online",
+        "www.venzio.online",
+        "localhost:8000",
+        "127.0.0.1:8000"
+    }
 
-    if not site or parsed_origin != site.domain_allowed.lower():
+    if not site or parsed_origin not in allowed_domains:
         await websocket.close(code=1008, reason="Dominio no autorizado")
         return
 
