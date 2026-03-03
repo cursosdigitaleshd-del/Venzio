@@ -1047,6 +1047,26 @@
         </div>
     </div>
 
+    <!-- ── MODAL: Edit Site ───────────────────────────────────────────────────── -->
+    <div class="modal-overlay" id="modal-edit-site">
+        <div class="modal">
+            <h2 id="edit-site-modal-title">Editar sitio web</h2>
+            <div class="form-group">
+                <label>Site ID</label>
+                <input type="text" id="es-site_id" readonly />
+            </div>
+            <div class="form-group">
+                <label>Dominio permitido</label>
+                <input type="text" id="es-domain_allowed" placeholder="ej: midominio.com" />
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('edit-site')">Cancelar</button>
+                <button class="btn-primary" style="width:auto;padding:10px 24px;" onclick="editSite()">Guardar
+                    cambios</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ── TOAST ─────────────────────────────────────────────────────────────── -->
     <div id="toast"></div>
 
@@ -1475,7 +1495,7 @@
                 const container = document.getElementById('sites-container');
                 if (!sites.length) { container.innerHTML = '<div class="empty">No hay sitios web registrados.</div>'; return; }
                 container.innerHTML = `<table>
-        <thead><tr><th>ID</th><th>Usuario</th><th>Email</th><th>Site ID</th><th>Dominio Permitido</th><th>Estado</th><th>Creado</th></tr></thead>
+        <thead><tr><th>ID</th><th>Usuario</th><th>Email</th><th>Site ID</th><th>Dominio Permitido</th><th>Estado</th><th>Creado</th><th>Acciones</th></tr></thead>
         <tbody>${sites.map(s => `
           <tr>
             <td style="color:var(--text-muted)">#${s.id}</td>
@@ -1485,6 +1505,7 @@
             <td><strong>${s.domain_allowed}</strong></td>
             <td><span class="badge ${s.is_active ? 'badge-success' : 'badge-error'}">${s.is_active ? 'Activo' : 'Inactivo'}</span></td>
             <td>${new Date(s.created_at).toLocaleDateString()}</td>
+            <td><button class="btn-sm primary" onclick="openEditSiteModal('${s.site_id}', '${s.domain_allowed}')">✏️ Editar</button></td>
           </tr>`).join('')}
         </tbody></table>`;
             } catch (e) { toast('Error cargando sitios: ' + e.message, 'error'); }
@@ -1519,6 +1540,37 @@
                 loadUsers(); // Refresh users list
             } catch (e) {
                 toast('Error actualizando usuario: ' + e.message, 'error');
+            }
+        }
+
+        // ── Edit Site ──────────────────────────────────────────────────────────────────
+        function openEditSiteModal(siteId, domainAllowed) {
+            document.getElementById('edit-site-modal-title').textContent = `Editar sitio: ${siteId}`;
+            document.getElementById('es-site_id').value = siteId;
+            document.getElementById('es-domain_allowed').value = domainAllowed;
+            document.getElementById('modal-edit-site').classList.add('open');
+            // Store siteId for later
+            document.getElementById('modal-edit-site').dataset.siteId = siteId;
+        }
+
+        async function editSite() {
+            const siteId = document.getElementById('modal-edit-site').dataset.siteId;
+            const payload = {
+                domain_allowed: document.getElementById('es-domain_allowed').value.trim(),
+            };
+
+            if (!payload.domain_allowed) {
+                toast('El dominio es requerido', 'error');
+                return;
+            }
+
+            try {
+                await apiFetch(`/widget-sites/${siteId}`, { method: 'PUT', body: JSON.stringify(payload) });
+                toast('Sitio actualizado exitosamente', 'success');
+                closeModal('edit-site');
+                loadSites(); // Refresh sites list
+            } catch (e) {
+                toast('Error actualizando sitio: ' + e.message, 'error');
             }
         }
 

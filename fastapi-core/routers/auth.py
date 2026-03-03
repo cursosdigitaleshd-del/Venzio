@@ -13,7 +13,7 @@ from auth import (
 )
 from config import settings
 from database import get_db
-from models import User
+from models import User, WidgetSite
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
 
@@ -61,10 +61,24 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
         email=payload.email,
         hashed_password=hash_password(payload.password),
         full_name=payload.full_name,
+        phone=payload.phone,
+        company_name=payload.company_name,
+        website=payload.website,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    # Crear WidgetSite automáticamente con dominio base venzio.online
+    widget_site = WidgetSite(
+        user_id=user.id,
+        site_id=WidgetSite.generate_site_id(),
+        secret_key=WidgetSite.generate_secret_key(),
+        domain_allowed="venzio.online"
+    )
+    db.add(widget_site)
+    db.commit()
+
     return user
 
 

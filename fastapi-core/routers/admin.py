@@ -85,6 +85,10 @@ class WidgetSiteOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class UpdateWidgetSite(BaseModel):
+    domain_allowed: str
+
+
 class PaymentOut(BaseModel):
     id: int
     user_id: int
@@ -105,7 +109,18 @@ def admin_root():
 
 # ── Me ────────────────────────────────────────────────────────────────────────
 @router.get("/me")
-def get_me(current_admin=Depends(get_current_admin)):
+def get_me(current_admin=Depends(get_current_admin), db: Session = Depends(get_db)):
+    # Crear WidgetSite para admin si no existe
+    site = db.query(WidgetSite).filter_by(user_id=current_admin.id, is_active=True).first()
+    if not site:
+        site = WidgetSite(
+            user_id=current_admin.id,
+            site_id=WidgetSite.generate_site_id(),
+            secret_key=WidgetSite.generate_secret_key(),
+            domain_allowed="venzio.online"
+        )
+        db.add(site)
+        db.commit()
     return current_admin
 
 
@@ -325,3 +340,31 @@ def list_widget_sites(
         })
 
     return result
+
+
+@router.put("/widget-sites/{site_id}", response_model=WidgetSiteOut)
+def update_widget_site(
+    site_id: str,
+    payload: UpdateWidgetSite,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    site = db.query(WidgetSite).filter(WidgetSite.site_id == site_id).first()
+    if not site:
+        raise HTTPException(status_code=404, detail="Sitio no encontrado")
+
+    site.domain_allowed = payload.domain_allowed
+    db.commit()
+    db.refresh(site)
+
+    # Devolver en formato WidgetSiteOut
+    return {
+        "id": site.id,
+        "user_id": site.user_id,
+        "user_email": site.user.email,
+        "user_name": site.user.full_name,
+        "site_id": site.site_id,
+        "domain_allowed": site.domain_allowed,
+        "is_active": site.is_active,
+        "created_at": site.created_at,
+    }
