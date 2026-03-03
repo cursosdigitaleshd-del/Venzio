@@ -1118,8 +1118,11 @@
                 localStorage.setItem('venzio_token', token);
                 document.getElementById('user-email-display').textContent = data.user.email;
                 document.getElementById('user-initial').textContent = data.user.email[0].toUpperCase();
-                window.VENZIO_USER_DATA = data.user; // Store user data for widget
-                showApp(data.user);
+
+                // Obtener datos completos del usuario incluyendo site_id
+                const userData = await apiFetch('/me');
+                window.VENZIO_USER_DATA = userData; // Store complete user data for widget
+                showApp(userData);
             } catch (err) {
                 errEl.textContent = err.message;
                 errEl.style.display = 'block';

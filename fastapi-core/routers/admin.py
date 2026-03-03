@@ -25,7 +25,22 @@ class UserOut(BaseModel):
     subscription_end_date: datetime | None
     is_active: bool
     is_admin: bool
-    site_id: str | None  # Agregar site_id
+    model_config = {"from_attributes": True}
+
+
+class AdminUserOut(BaseModel):
+    id: int
+    email: str
+    full_name: str | None
+    phone: str | None
+    company_name: str | None
+    website: str | None
+    master_prompt: str | None
+    plan_id: int | None
+    subscription_end_date: datetime | None
+    is_active: bool
+    is_admin: bool
+    site_id: str | None  # Solo para admin
     model_config = {"from_attributes": True}
 
 
@@ -109,7 +124,7 @@ def admin_root():
 
 
 # ── Me ────────────────────────────────────────────────────────────────────────
-@router.get("/me")
+@router.get("/me", response_model=AdminUserOut)
 def get_me(current_admin=Depends(get_current_admin), db: Session = Depends(get_db)):
     # Crear WidgetSite para admin si no existe
     site = db.query(WidgetSite).filter_by(user_id=current_admin.id, is_active=True).first()
@@ -124,7 +139,7 @@ def get_me(current_admin=Depends(get_current_admin), db: Session = Depends(get_d
         db.commit()
 
     # Devolver usuario con site_id incluido
-    user_data = UserOut.model_validate(current_admin)
+    user_data = AdminUserOut.model_validate(current_admin)
     user_data.site_id = site.site_id
     return user_data
 
