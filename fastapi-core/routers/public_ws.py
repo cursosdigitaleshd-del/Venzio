@@ -99,7 +99,7 @@ async def public_voice_session(
     db_session = VoiceSession(
         session_token=session_token,
         voice_id=voice_id,
-        user_id=user.id if user else None,
+        user_id=owner.id,
         status="active",
     )
     db.add(db_session)
