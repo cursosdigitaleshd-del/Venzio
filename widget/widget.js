@@ -10,8 +10,8 @@
 
     // ── Config (can be overridden via data attributes on <script> tag) ──────────
     const CONFIG = {
-        apiBase: window.VENZIO_API || '/api',
-        wsBase: window.VENZIO_WS || 'ws://localhost',
+        apiBase: window.VENZIO_API || 'https://venzio.online/api',
+        wsBase: window.VENZIO_WS || 'wss://venzio.online',
         agentName: window.VENZIO_NAME || 'Agente Venzio',
         autoOpen: false,
         // VAD Configuration
@@ -205,7 +205,33 @@
         }
 
         // ── WebSocket Connection ───────────────────────────────────────────────────
-        _connectWebSocket() {
+        async _getTemporalToken() {
+            const siteId = window.VENZIO_SITE_ID;
+            if (!siteId) throw new Error('[Venzio] window.VENZIO_SITE_ID no definido');
+
+            const res = await fetch(
+                `${CONFIG.apiBase.replace('/api', '')}/widget/auth?site_id=${encodeURIComponent(siteId)}`
+            );
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(`[Venzio] Auth fallida: ${err.detail || res.status}`);
+            }
+
+            const { token, expires_in } = await res.json();
+
+            // Auto-refresh 60s antes de expirar
+            clearTimeout(this._tokenRefreshTimer);
+            this._tokenRefreshTimer = setTimeout(
+                () => this._getTemporalToken().catch(() => { }),
+                (expires_in - 60) * 1000
+            );
+
+            this._widgetToken = token;
+            return token;
+        }
+
+        async _connectWebSocket() {
             if (!this.selectedVoiceId) {
                 this._addMessage('system', 'Selecciona una voz antes de iniciar.');
                 return;
@@ -213,10 +239,17 @@
             this._setState(STATES.CONNECTING);
             this._setStatus('Conectando...');
 
-            let wsUrl = `${CONFIG.wsBase}/ws/public/voice/${this.selectedVoiceId}`;
-            if (window.VENZIO_USER_TOKEN) {
-                wsUrl += `?token=${window.VENZIO_USER_TOKEN}`;
+            let token;
+            try {
+                token = await this._getTemporalToken();
+            } catch (e) {
+                this._setState(STATES.ERROR);
+                this._addMessage('error', `⚠️ ${e.message}`);
+                this._setStatus('Error de autenticación');
+                return;
             }
+
+            const wsUrl = `${CONFIG.wsBase}/ws/public/voice/${this.selectedVoiceId}?token=${token}`;
             this.ws = new WebSocket(wsUrl);
 
             this.ws.onopen = () => {
@@ -301,8 +334,8 @@
                     mimeType: MediaRecorder.isTypeSupported('audio/wav;codecs=pcm')
                         ? 'audio/wav;codecs=pcm'
                         : MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-                        ? 'audio/webm;codecs=opus'
-                        : 'audio/ogg',
+                            ? 'audio/webm;codecs=opus'
+                            : 'audio/ogg',
                 });
 
                 this.mediaRecorder.ondataavailable = (e) => {
@@ -337,7 +370,7 @@
             this._setState(STATES.PROCESSING);
             this._setStatus('Enviando audio...');
         }
-        
+
         _pauseVAD() {
             if (this.vadInterval) {
                 clearInterval(this.vadInterval);

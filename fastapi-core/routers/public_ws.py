@@ -1,14 +1,15 @@
 import json
 import secrets
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException
 from sqlalchemy.orm import Session
 
-from auth import decode_token
+from auth import decode_widget_token
 from concurrency import session_manager
 from database import get_db
-from models import Voice, VoiceSession, User
+from models import Voice, VoiceSession, User, WidgetSite
 from services import llm, stt_client, tts_client
 
 router = APIRouter(tags=["Public WebSocket"])
@@ -23,34 +24,51 @@ async def public_voice_session(
     db: Session = Depends(get_db),
 ):
     """
-    WebSocket público para el widget - acepta token opcional para usuarios autenticados.
+    WebSocket público para el widget.
+    Capa 2 de seguridad: valida JWT tipo 'widget' + Origin antes de accept().
     Pipeline: Cliente → audio → STT → LLM → TTS → audio → Cliente
     """
-    await websocket.accept()
+    # ── CAPA 2: Validar antes de accept() ─────────────────────────────────────
+    if not token:
+        await websocket.close(code=1008, reason="Token requerido")
+        return
 
-    # Parsear usuario opcional desde query parameter token
-    user = None
-    master_prompt = None
-    if token:
-        try:
-            payload = decode_token(token)
-            user_id = payload.get("sub")
-            if user_id:
-                user = db.get(User, int(user_id))
-                if user and user.is_active:
-                    # Verificar suscripción activa o si es admin
-                    now = datetime.now(timezone.utc)
-                    has_active_subscription = user.subscription_end_date and user.subscription_end_date.replace(tzinfo=timezone.utc) > now
-                    if has_active_subscription or user.is_admin:
-                        master_prompt = user.master_prompt
-                    else:
-                        await websocket.send_text(json.dumps({"type": "error", "message": "Suscripción expirada. Contacte soporte."}))
-                        await websocket.close()
-                        return
-                else:
-                    user = None
-        except Exception:
-            pass  # Invalid token, continue as anonymous
+    try:
+        payload = decode_widget_token(token)  # valida firma, expiración y type='widget'
+    except Exception:
+        await websocket.close(code=1008, reason="Token inválido o expirado")
+        return
+
+    # Validar Origin también en el WS (segunda validación de dominio)
+    origin = websocket.headers.get("origin", "")
+    parsed_origin = urlparse(origin).netloc.lower()
+
+    site = db.query(WidgetSite).filter(
+        WidgetSite.site_id == payload["sid"],
+        WidgetSite.is_active == True,
+    ).first()
+
+    if not site or parsed_origin != site.domain_allowed.lower():
+        await websocket.close(code=1008, reason="Dominio no autorizado")
+        return
+
+    # Cargar master_prompt del usuario dueño del site
+    owner = db.get(User, site.user_id)
+    master_prompt = owner.master_prompt if owner and owner.is_active else None
+
+    # Verificar suscripción activa del dueño del site
+    if owner and not owner.is_admin:
+        now = datetime.now(timezone.utc)
+        has_active_sub = (
+            owner.subscription_end_date
+            and owner.subscription_end_date.replace(tzinfo=timezone.utc) > now
+        )
+        if not has_active_sub:
+            await websocket.close(code=1008, reason="Suscripción del site expirada")
+            return
+
+    # ── Ahora sí: aceptar la conexión ─────────────────────────────────────────
+    await websocket.accept()
 
     # Buscar voz activa
     voice = db.get(Voice, voice_id)

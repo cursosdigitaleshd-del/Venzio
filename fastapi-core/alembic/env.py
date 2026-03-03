@@ -12,7 +12,7 @@ from alembic import context
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from database import Base
-from models import User, Plan, Voice, VoiceSession, UsageLog  # noqa – register all models
+from models import User, Plan, Voice, VoiceSession, UsageLog, WidgetSite  # noqa – register all models
 
 # Alembic Config object
 config = context.config

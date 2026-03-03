@@ -85,3 +85,32 @@ def get_current_user_optional(
         return user
     except HTTPException:
         return None
+
+
+# ── Widget JWT (tokens temporales de 5 min, nunca expuestos al cliente) ───────
+def create_widget_token(site_id: str, user_id: int) -> str:
+    """Genera un JWT temporal de 5 minutos para el widget embebido.
+    Incluye type='widget' para no poder reutilizar tokens de usuario normal."""
+    payload = {
+        "sid": site_id,
+        "uid": user_id,
+        "type": "widget",
+    }
+    return create_access_token(payload, expires_delta=timedelta(minutes=5))
+
+
+def decode_widget_token(token: str) -> dict:
+    """Decodifica y valida un token de widget.
+    Lanza HTTPException si el token es inválido, expirado, o no es de tipo 'widget'."""
+    payload = decode_token(token)  # lanza 401 si inválido/expirado
+    if payload.get("type") != "widget":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token no es de tipo widget",
+        )
+    if not payload.get("sid") or not payload.get("uid"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token widget mal formado",
+        )
+    return payload

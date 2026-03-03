@@ -26,6 +26,7 @@ from routers.users import router as users_router
 from routers.contact import router as contact_router
 from routers.public_rest import router as public_rest_router
 from routers.public_ws import router as public_ws_router
+from routers.widget_auth import router as widget_auth_router
 
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -172,6 +173,7 @@ app.include_router(users_router, prefix="/api")
 app.include_router(contact_router, prefix="/api")
 app.include_router(public_rest_router, prefix="/api/public")
 app.include_router(public_ws_router)
+app.include_router(widget_auth_router)  # /widget/auth — sin prefijo /api
 
 
 @app.get("/admin/", tags=["Admin"])
