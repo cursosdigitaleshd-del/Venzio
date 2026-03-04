@@ -75,6 +75,11 @@ async def public_voice_session(
             await websocket.close(code=1008, reason="Suscripción del site expirada")
             return
 
+        # Verificar límite de minutos (con protección contra None)
+        if owner.plan and owner.plan.max_minutes and (owner.minutes_used or 0) >= owner.plan.max_minutes:
+            await websocket.close(code=4002, reason="Límite mensual de minutos alcanzado")
+            return
+
     # ── Ahora sí: aceptar la conexión ─────────────────────────────────────────
     await websocket.accept()
 
@@ -188,6 +193,10 @@ async def public_voice_session(
         db_session.ended_at = ended_at
         db_session.duration_seconds = duration
         db_session.transcript = "\n".join(full_transcript_parts)
+
+        # Actualizar minutos usados del owner (con protección contra None)
+        if owner and not owner.is_admin:
+            owner.minutes_used = (owner.minutes_used or 0) + (duration / 60.0)
 
         # Generar resumen si hay conversación
         if full_transcript_parts:
