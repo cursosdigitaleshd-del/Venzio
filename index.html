@@ -126,7 +126,12 @@
       bottom: -80px; right: -80px;
     }
 
-    .hero { position: relative; z-index: 1; max-width: 640px; }
+    .hero {
+      position: relative;
+      z-index: 1;
+      max-width: 640px;
+      margin: 0 auto;
+    }
 
     .badge {
       display: inline-flex; align-items: center; gap: 8px;
@@ -210,6 +215,45 @@
     @media (max-width: 520px) {
       .feature-grid { grid-template-columns: 1fr; }
     }
+
+    /* Mobile navbar improvements */
+    @media (max-width: 991px) {
+
+      .mobile-menu {
+        background: rgba(15,15,26,0.98);
+        padding: 20px 0;
+        border-top: 1px solid rgba(255,255,255,0.05);
+      }
+
+      .navbar-nav {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      .navbar-nav .nav-link {
+        margin: 12px 0;
+        font-size: 16px;
+      }
+
+      .auth-buttons {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .auth-buttons .btn {
+        width: 200px;
+      }
+
+    }
+
+    .navbar-toggler {
+      border: none;
+    }
+
+    .navbar-toggler:focus {
+      box-shadow: none;
+    }
   </style>
 </head>
 <body>
@@ -222,7 +266,7 @@
         <span class="navbar-toggler-icon"></span>
       </button>
 
-      <div class="collapse navbar-collapse" id="navbarNav">
+      <div class="collapse navbar-collapse mobile-menu" id="navbarNav">
         <ul class="navbar-nav me-auto">
           <li class="nav-item">
             <a class="nav-link active" href="/">Inicio</a>
