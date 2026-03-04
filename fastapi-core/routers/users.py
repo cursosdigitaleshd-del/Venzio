@@ -28,6 +28,8 @@ class UserProfile(BaseModel):
     company_name: str | None
     website: str | None
     master_prompt: str | None
+    minutes_used: float
+    usage_this_month: float
     plan_id: int | None
     subscription_end_date: datetime | None
     site_id: str | None = None
@@ -36,7 +38,6 @@ class UserProfile(BaseModel):
     plan_name: str | None
     plan_status: str
     plan_max_minutes: int
-    usage_this_month: float
     renewal_date: datetime | None
     model_config = {"from_attributes": True}
 
@@ -99,15 +100,25 @@ def get_my_profile(
     renewal_date = current_user.subscription_end_date
     plan_status = "active" if current_user.is_active and current_user.plan else "inactive"
 
-    user_dict = current_user.__dict__.copy()
-    user_dict.pop('_sa_instance_state', None)
+    # Construir user_dict de forma segura
+    user_dict = {
+        k: v for k, v in current_user.__dict__.items()
+        if not k.startswith("_")
+    }
 
-    user_dict['site_id'] = site.site_id if site else None
-    user_dict['plan_name'] = plan_name
-    user_dict['plan_status'] = plan_status
-    user_dict['plan_max_minutes'] = plan_max_minutes
-    user_dict['usage_this_month'] = usage_this_month
-    user_dict['renewal_date'] = renewal_date
+    # Normalizar valores calculados
+    minutes_used = float(getattr(current_user, "minutes_used", 0) or 0)
+    usage_this_month = float(usage_this_month or 0)
+
+    user_dict.update({
+        "minutes_used": minutes_used,
+        "usage_this_month": usage_this_month,
+        "site_id": site.site_id if site else None,
+        "plan_name": plan_name,
+        "plan_status": plan_status,
+        "plan_max_minutes": plan_max_minutes,
+        "renewal_date": renewal_date,
+    })
 
     return UserProfile.model_validate(user_dict)
 
