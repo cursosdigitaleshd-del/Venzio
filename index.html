@@ -14,8 +14,8 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* Header */
-    .header {
+    /* Header/Navbar */
+    .navbar {
       position: fixed;
       top: 0;
       width: 100%;
@@ -29,13 +29,10 @@
       max-width: 1200px;
       margin: 0 auto;
       padding: 0 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
       height: 70px;
     }
 
-    .logo {
+    .navbar-brand.logo {
       font-size: 24px;
       font-weight: 700;
       background: linear-gradient(135deg, #6C63FF, #00D9FF);
@@ -43,25 +40,19 @@
       -webkit-text-fill-color: transparent;
     }
 
-    .nav {
-      display: flex;
-      gap: 32px;
-    }
-
-    .nav-link {
+    .navbar-nav .nav-link {
       color: #8888AA;
-      text-decoration: none;
       font-weight: 500;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      margin: 0 16px;
     }
 
-    .nav-link:hover,
-    .nav-link.active {
+    .navbar-nav .nav-link:hover,
+    .navbar-nav .nav-link.active {
       color: #6C63FF;
     }
 
     .auth-buttons {
-      display: flex;
       gap: 12px;
     }
 
@@ -77,13 +68,13 @@
       display: inline-block;
     }
 
-    .btn-outline {
+    .btn-outline-light {
       border: 1px solid rgba(255, 255, 255, 0.07);
       background: none;
       color: #E8E8FF;
     }
 
-    .btn-outline:hover {
+    .btn-outline-light:hover {
       border-color: #6C63FF;
       color: #6C63FF;
     }
@@ -223,20 +214,34 @@
 </head>
 <body>
   <!-- Header -->
-  <header class="header">
-    <div class="header-content">
-      <div class="logo">Venzio</div>
-      <nav class="nav">
-        <a href="/" class="nav-link active">Inicio</a>
-        <a href="/prices/" class="nav-link">Planes</a>
-        <a href="/contact/" class="nav-link">Contacto</a>
-      </nav>
-      <div class="auth-buttons">
-        <a href="/login/" class="btn btn-outline">Iniciar Sesión</a>
-        <a href="/register/" class="btn btn-primary">Registrarse</a>
+  <nav class="navbar navbar-expand-lg navbar-dark header">
+    <div class="container-fluid header-content">
+      <a class="navbar-brand logo" href="/">Venzio</a>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link active" href="/">Inicio</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/prices/">Planes</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/contact/">Contacto</a>
+          </li>
+        </ul>
+
+        <div class="d-flex auth-buttons">
+          <a href="/login/" class="btn btn-outline-light me-2">Iniciar Sesión</a>
+          <a href="/register/" class="btn btn-primary">Registrarse</a>
+        </div>
       </div>
     </div>
-  </header>
+  </nav>
 
   <div class="container">
     <div class="row justify-content-center">
