@@ -1051,6 +1051,13 @@
                 </div>
             </div>
 
+            <div class="form-group">
+                <label>Plan</label>
+                <select id="eu-plan">
+                    <option value="">Sin plan</option>
+                </select>
+            </div>
+
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeModal('edit-user')">Cancelar</button>
                 <button class="btn-primary" style="width:auto;padding:10px 24px;" onclick="editUser()">Guardar
@@ -1561,13 +1568,40 @@
         }
 
         // ── Edit User ──────────────────────────────────────────────────────────────────
-        function openEditUserModal(userId, email, fullName, phone, companyName, website) {
+        async function openEditUserModal(userId, email, fullName, phone, companyName, website) {
             document.getElementById('edit-user-modal-title').textContent = `Editar usuario: ${email}`;
             document.getElementById('eu-email').value = email;
             document.getElementById('eu-full_name').value = fullName;
             document.getElementById('eu-phone').value = phone;
             document.getElementById('eu-company_name').value = companyName;
             document.getElementById('eu-website').value = website;
+
+            // Load plans and populate selector
+            const select = document.getElementById('eu-plan');
+            select.innerHTML = '<option value="">Sin plan</option>';
+
+            try {
+                const plans = await apiFetch('/plans');
+                plans.forEach(plan => {
+                    const option = document.createElement('option');
+                    option.value = plan.id;
+                    option.textContent = plan.name;
+                    select.appendChild(option);
+                });
+            } catch (e) {
+                toast('Error cargando planes: ' + e.message, 'error');
+            }
+
+            // Get user data to select current plan
+            try {
+                const user = await apiFetch(`/users/${userId}`);
+                if (user.plan_id) {
+                    select.value = user.plan_id;
+                }
+            } catch (e) {
+                toast('Error obteniendo datos del usuario: ' + e.message, 'error');
+            }
+
             document.getElementById('modal-edit-user').classList.add('open');
             // Store userId for later
             document.getElementById('modal-edit-user').dataset.userId = userId;
@@ -1583,7 +1617,16 @@
             };
 
             try {
+                // Update user data
                 await apiFetch(`/users/${userId}`, { method: 'PUT', body: JSON.stringify(payload) });
+
+                // Update plan
+                const selectedPlanId = document.getElementById('eu-plan').value;
+                await apiFetch(`/users/${userId}/plan`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ plan_id: selectedPlanId || null })
+                });
+
                 toast('Usuario actualizado exitosamente', 'success');
                 closeModal('edit-user');
                 loadUsers(); // Refresh users list

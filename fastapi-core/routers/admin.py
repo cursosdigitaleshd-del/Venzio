@@ -24,6 +24,9 @@ class UserOut(BaseModel):
     master_prompt: str | None
     plan_id: int | None
     subscription_end_date: datetime | None
+    minutes_used: int
+    subscription_start_date: datetime | None
+    status: str
     is_active: bool
     is_admin: bool
     model_config = {"from_attributes": True}
@@ -39,6 +42,9 @@ class AdminUserOut(BaseModel):
     master_prompt: str | None
     plan_id: int | None
     subscription_end_date: datetime | None
+    minutes_used: int
+    subscription_start_date: datetime | None
+    status: str
     is_active: bool
     is_admin: bool
     site_id: str | None  # Solo para admin
@@ -219,11 +225,24 @@ def update_user_plan(
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
     if payload.plan_id is not None:
         plan = db.get(Plan, payload.plan_id)
         if not plan:
             raise HTTPException(status_code=404, detail="Plan no encontrado")
+
+    # Update plan and reset subscription
     user.plan_id = payload.plan_id
+    if payload.plan_id is not None:
+        # Reset subscription when changing to a plan
+        user.minutes_used = 0
+        user.subscription_start_date = datetime.utcnow()
+        user.subscription_end_date = datetime.utcnow() + timedelta(days=30)
+        user.status = "active"
+    else:
+        # If removing plan, set status to inactive
+        user.status = "inactive"
+
     db.commit()
     return {"ok": True}
 

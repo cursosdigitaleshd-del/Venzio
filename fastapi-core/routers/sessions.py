@@ -47,16 +47,32 @@ async def voice_session(
             if user_id:
                 user = db.get(User, int(user_id))
                 if user and user.is_active:
-                    # Verificar suscripción activa o si es admin
+                    # Validaciones de suscripción según PMV
                     now = datetime.now(timezone.utc)
-                    has_active_subscription = user.subscription_end_date and user.subscription_end_date.replace(tzinfo=timezone.utc) > now
-                    if has_active_subscription or user.is_admin:
-                        master_prompt = user.master_prompt
-                        db_session.user_id = user.id
-                    else:
-                        await websocket.send_text(json.dumps({"type": "error", "message": "Suscripción expirada. Contacte soporte."}))
+
+                    # 1. Estado de la suscripción
+                    if user.status != "active" and not user.is_admin:
+                        await websocket.send_text(json.dumps({"type": "error", "message": "Suscripción inactiva. Contacte soporte."}))
                         await websocket.close()
                         return
+
+                    # 2. Fecha de vencimiento
+                    if user.subscription_end_date and user.subscription_end_date.replace(tzinfo=timezone.utc) <= now and not user.is_admin:
+                        user.status = "inactive"
+                        db.commit()
+                        await websocket.send_text(json.dumps({"type": "error", "message": "Suscripción vencida. Contacte soporte."}))
+                        await websocket.close()
+                        return
+
+                    # 3. Límite de minutos (si tiene plan)
+                    if user.plan and user.minutes_used >= user.plan.max_minutes and not user.is_admin:
+                        await websocket.send_text(json.dumps({"type": "error", "message": "Límite mensual alcanzado. Contacte soporte."}))
+                        await websocket.close()
+                        return
+
+                    # Si pasa todas las validaciones
+                    master_prompt = user.master_prompt
+                    db_session.user_id = user.id
                 else:
                     user = None
         except Exception:
@@ -177,6 +193,12 @@ async def voice_session(
                 db_session.summary = await llm.generate_summary(db_session.transcript)
             except Exception:
                 pass
+
+        # Actualizar minutos usados del usuario (convertir segundos a minutos)
+        if user and user.plan:
+            minutes_this_session = duration / 60.0  # Convertir segundos a minutos
+            user.minutes_used += minutes_this_session
+            db.commit()
 
         db.commit()
         logger.info(f"Sesión finalizada: {session_token} | Duración: {duration}s")
