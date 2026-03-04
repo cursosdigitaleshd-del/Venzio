@@ -53,8 +53,9 @@
 
             // Audio streaming properties
             this.audioQueue = [];
-            this.isPlaying = false;
             this.currentSource = null;
+            this.playbackToken = 0;
+            this.isDecoding = false;
 
             // VAD properties
             this.vadInterval = null;
@@ -63,7 +64,6 @@
             this.inactivityTimer = null;
             this.speakingStartTime = null;
             this.lastVoiceTime = null;
-            this.currentSource = null; // for interrupting AI audio
 
             this._build();
             this._loadVoices();
@@ -397,23 +397,32 @@
 
             this.audioQueue.push(blob);
 
-            if (!this.isPlaying) {
-                this.isPlaying = true;
+            if (!this.currentSource && !this.isDecoding) {
                 this._playNext();
             }
         }
 
         async _playNext() {
+            if (this.isDecoding) return;
+
             if (this.audioQueue.length === 0) {
-                this.isPlaying = false;
+                this.isDecoding = false;
                 return;
             }
+
+            this.isDecoding = true;
+            const currentToken = this.playbackToken;
 
             const blob = this.audioQueue.shift();
 
             try {
                 const arrayBuffer = await blob.arrayBuffer();
                 const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
+
+                if (currentToken !== this.playbackToken) {
+                    this.isDecoding = false;
+                    return;
+                }
 
                 const source = this.audioCtx.createBufferSource();
                 source.buffer = audioBuffer;
@@ -422,7 +431,10 @@
                 this.currentSource = source;
 
                 source.onended = () => {
+                    if (currentToken !== this.playbackToken) return;
+
                     this.currentSource = null;
+                    this.isDecoding = false;
                     this._playNext();
                 };
 
@@ -430,7 +442,11 @@
 
             } catch (err) {
                 console.error("Audio decode error:", err);
-                this._playNext(); // Continuar con siguiente, no bloquear cola
+                this.isDecoding = false;
+
+                if (currentToken === this.playbackToken) {
+                    this._playNext();
+                }
             }
         }
 
@@ -446,8 +462,6 @@
                 }
                 this.currentSource = null;
             }
-
-            this.isPlaying = false;
         }
 
         // ── Legacy Audio Playback (for compatibility) ─────────────────────────────
@@ -655,10 +669,17 @@
         }
 
         _interruptAI() {
+            this.playbackToken = Date.now();
+            this.audioQueue = [];
+
             if (this.currentSource) {
-                this.currentSource.stop();
+                try {
+                    this.currentSource.stop(0);
+                    this.currentSource.disconnect();
+                } catch (e) {}
                 this.currentSource = null;
             }
+
             this._setStatus('Interrumpido...');
         }
 
