@@ -488,10 +488,13 @@
             document.getElementById('planStatus').textContent = user.plan_status === 'active' ? 'Activa' : 'Inactiva';
             document.getElementById('renewalDate').textContent = user.renewal_date ? new Date(user.renewal_date).toLocaleDateString() : 'N/A';
 
-            const percent = user.plan_max_minutes > 0 ? (user.usage_this_month / user.plan_max_minutes) * 100 : 0;
+            const used = Math.floor(user.minutes_used || 0);
+            const max = user.plan_max_minutes || 0;
+            const percent = max > 0 ? (used / max) * 100 : 0;
             const clampedPercent = Math.min(percent, 100);
+
             document.getElementById('progressFill').style.width = clampedPercent + '%';
-            document.getElementById('usageText').innerText = `Consumo este mes: ${user.usage_this_month} / ${user.plan_max_minutes} minutos`;
+            document.getElementById('usageText').innerText = `Consumo este mes: ${used} / ${max} minutos`;
         }
 
         // Load payments
