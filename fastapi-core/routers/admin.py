@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
@@ -9,6 +10,8 @@ from auth import get_current_admin
 from concurrency import session_manager
 from database import get_db
 from models import Payment, Plan, User, Voice, VoiceSession, UsageLog, WidgetSite
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Admin"])
 
@@ -120,6 +123,7 @@ class UpdateWidgetSite(BaseModel):
 class PaymentOut(BaseModel):
     id: int
     user_id: int
+    user_email: str | None
     amount: float
     days_added: int
     payment_date: datetime
@@ -210,8 +214,9 @@ def get_stats(
 @router.get("/users", response_model=list[UserOut])
 def list_users(
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    current_admin=Depends(get_current_admin),
 ):
+    logger.info(f"Admin {current_admin.email} requested users list")
     return db.query(User).all()
 
 
@@ -365,12 +370,34 @@ def register_payment(
     return payment
 
 
-@router.get("/payments", response_model=list[PaymentOut])
+@router.get("/payments")
 def list_all_payments(
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    current_admin=Depends(get_current_admin),
 ):
-    return db.query(Payment).order_by(Payment.payment_date.desc()).all()
+    payments = (
+        db.query(Payment, User.email)
+        .join(User, Payment.user_id == User.id)
+        .order_by(Payment.payment_date.desc())
+        .all()
+    )
+
+    result = []
+    for payment, email in payments:
+        result.append({
+            "id": payment.id,
+            "user_id": payment.user_id,
+            "user_email": email,
+            "amount": payment.amount,
+            "days_added": payment.days_added,
+            "payment_date": payment.payment_date,
+            "description": payment.description,
+            "plan_id": payment.plan_id,
+            "created_by": payment.created_by,
+        })
+
+    logger.info(f"Admin {current_admin.email} requested payments list ({len(result)} records)")
+    return result
 
 
 @router.put("/users/{user_id}", response_model=UserOut)
@@ -395,7 +422,7 @@ def update_user_data(
 @router.get("/widget-sites", response_model=list[WidgetSiteOut])
 def list_widget_sites(
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    current_admin=Depends(get_current_admin),
 ):
     # Join con User para obtener email y nombre
     from sqlalchemy.orm import joinedload
@@ -415,6 +442,7 @@ def list_widget_sites(
             "created_at": site.created_at,
         })
 
+    logger.info(f"Admin {current_admin.email} requested widget sites list ({len(result)} records)")
     return result
 
 

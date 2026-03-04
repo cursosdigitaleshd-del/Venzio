@@ -1136,6 +1136,7 @@
         async function apiFetch(path, options = {}) {
             const res = await fetch(`${API}${path}`, {
                 ...options,
+                credentials: "include",
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...(options.headers || {}) },
             });
             if (!res.ok) {
@@ -1250,6 +1251,19 @@
             });
         });
 
+        // ── Filter Table ──────────────────────────────────────────────────────────────
+        function filterTable(inputId, tableId) {
+            const search = document.getElementById(inputId).value.toLowerCase();
+            const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+
+            rows.forEach(row => {
+                if (row.dataset.static === "true") return;
+
+                const match = row.textContent.toLowerCase().includes(search);
+                row.style.display = match ? "" : "none";
+            });
+        }
+
         // ── Stats ─────────────────────────────────────────────────────────────────────
         async function loadStats() {
             try {
@@ -1275,11 +1289,23 @@
 
         // ── Users ─────────────────────────────────────────────────────────────────────
         async function loadUsers() {
+            const container = document.getElementById('users-container');
+            container.innerHTML = '<div class="empty">Cargando...</div>';
+
             try {
-                const users = await apiFetch('/users');
-                const container = document.getElementById('users-container');
-                if (!users.length) { container.innerHTML = '<div class="empty">Sin usuarios registrados.</div>'; return; }
-                container.innerHTML = `<table>
+                const res = await fetch('/api/admin/users', { credentials: 'include' });
+                if (!res.ok) {
+                    throw new Error('HTTP ' + res.status);
+                }
+                const users = await res.json();
+
+                if (!users || users.length === 0) {
+                    container.innerHTML = '<div class="empty">No hay usuarios registrados</div>';
+                    return;
+                }
+
+                container.innerHTML = `<input type="text" placeholder="Buscar usuarios..." onkeyup="filterTable('searchUsers','usersTable')" id="searchUsers" style="width:100%;padding:8px;margin-bottom:16px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text);border-radius:6px;outline:none;" />
+        <table id="usersTable">
         <thead><tr><th>ID</th><th>Email</th><th>Nombre</th><th>Teléfono</th><th>Empresa</th><th>Sitio Web</th><th>Plan</th><th>Suscripción</th><th>Prompt Maestro</th><th>Estado</th><th>Acciones</th></tr></thead>
         <tbody>${users.map(u => `
           <tr>
@@ -1301,7 +1327,10 @@
             </td>
           </tr>`).join('')}
         </tbody></table>`;
-            } catch (e) { toast('Error cargando usuarios: ' + e.message, 'error'); }
+            } catch (err) {
+                container.innerHTML = '<div class="empty">Error cargando usuarios</div>';
+                console.error('Users load error:', err);
+            }
         }
 
         async function toggleUser(id) {
@@ -1421,12 +1450,13 @@
                 const payments = await apiFetch('/payments');
                 const container = document.getElementById('payments-container');
                 if (!payments.length) { container.innerHTML = '<div class="empty">Sin pagos registrados.</div>'; return; }
-                container.innerHTML = `<table>
+                container.innerHTML = `<input type="text" placeholder="Buscar pagos..." onkeyup="filterTable('searchPayments','paymentsTable')" id="searchPayments" style="width:100%;padding:8px;margin-bottom:16px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text);border-radius:6px;outline:none;" />
+        <table id="paymentsTable">
         <thead><tr><th>ID</th><th>Usuario</th><th>Monto</th><th>Días</th><th>Fecha</th><th>Descripción</th></tr></thead>
         <tbody>${payments.map(p => `
           <tr>
             <td style="color:var(--text-muted)">#${p.id}</td>
-            <td>Usuario #${p.user_id}</td>
+            <td>${p.user_email}</td>
             <td><strong>$${p.amount}</strong></td>
             <td>${p.days_added} días</td>
             <td>${new Date(p.payment_date).toLocaleDateString()}</td>
@@ -1550,7 +1580,8 @@
                 const sites = await apiFetch('/widget-sites');
                 const container = document.getElementById('sites-container');
                 if (!sites.length) { container.innerHTML = '<div class="empty">No hay sitios web registrados.</div>'; return; }
-                container.innerHTML = `<table>
+                container.innerHTML = `<input type="text" placeholder="Buscar sitios..." onkeyup="filterTable('searchSites','sitesTable')" id="searchSites" style="width:100%;padding:8px;margin-bottom:16px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text);border-radius:6px;outline:none;" />
+        <table id="sitesTable">
         <thead><tr><th>ID</th><th>Usuario</th><th>Email</th><th>Site ID</th><th>Dominio Permitido</th><th>Estado</th><th>Creado</th><th>Acciones</th></tr></thead>
         <tbody>${sites.map(s => `
           <tr>

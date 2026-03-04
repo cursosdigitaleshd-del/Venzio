@@ -18,6 +18,7 @@ class UserUpdate(BaseModel):
     phone: str | None = None
     company_name: str | None = None
     website: str | None = None
+    master_prompt: str | None = None
 
 
 class UserProfile(BaseModel):
@@ -130,6 +131,8 @@ def update_my_profile(
     db: Session = Depends(get_db),
 ):
     for field, value in payload.model_dump(exclude_none=True).items():
+        if field == "master_prompt" and value is not None and value.strip() == "":
+            continue  # No actualizar si está vacío
         setattr(current_user, field, value)
     db.commit()
     db.refresh(current_user)

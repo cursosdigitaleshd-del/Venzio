@@ -412,8 +412,8 @@
 
                     <!-- Master Prompt Display -->
                     <div class="form-group" style="margin-top: 20px;">
-                        <label>Tu Prompt Maestro (solo lectura)</label>
-                        <textarea id="master-prompt" readonly rows="4"
+                        <label>Tu Prompt Maestro</label>
+                        <textarea id="master-prompt" rows="4"
                             style="width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; outline: none; resize: vertical;"></textarea>
                     </div>
 
@@ -550,6 +550,7 @@
                 phone: document.getElementById('phone').value.trim(),
                 company_name: document.getElementById('company_name').value.trim(),
                 website: document.getElementById('website').value.trim(),
+                master_prompt: document.getElementById('master-prompt').value.trim(),
             };
 
             try {
