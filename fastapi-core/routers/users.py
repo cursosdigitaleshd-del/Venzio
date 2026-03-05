@@ -9,7 +9,7 @@ from database import get_db
 from models import Payment, User, WidgetSite, UsageLog
 from urllib.parse import urlparse
 
-router = APIRouter(prefix="/users", tags=["Usuarios"])
+router = APIRouter(tags=["Usuarios"])
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────

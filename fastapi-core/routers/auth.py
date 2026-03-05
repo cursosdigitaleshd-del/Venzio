@@ -104,6 +104,5 @@ def login(
     return Token(access_token=token, token_type="bearer", user=UserOut.model_validate(user))
 
 
-@router.get("/me", response_model=UserOut)
-def me(current_user: User = Depends(get_current_user)):
-    return current_user
+
+
