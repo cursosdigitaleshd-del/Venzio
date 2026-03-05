@@ -1120,7 +1120,7 @@
         // ── Auth ─────────────────────────────────────────────────────────────────────
         async function login(email, password) {
             const form = new URLSearchParams({ username: email, password });
-            const res = await fetch(`${API}/auth/token`, { method: 'POST', body: form });
+            const res = await fetch(`${API}/auth/login`, { method: 'POST', body: form });
             if (!res.ok) throw new Error('Invalid credentials');
             const data = await res.json();
             return data;
