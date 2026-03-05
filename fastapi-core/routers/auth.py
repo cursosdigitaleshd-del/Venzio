@@ -15,7 +15,7 @@ from config import settings
 from database import get_db
 from models import User, WidgetSite
 
-router = APIRouter(prefix="/auth", tags=["Autenticación"])
+router = APIRouter(tags=["Autenticación"])
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
