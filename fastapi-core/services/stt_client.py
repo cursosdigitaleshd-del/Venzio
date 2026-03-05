@@ -31,3 +31,17 @@ async def transcribe(audio_bytes: bytes, filename: str = "audio.wav") -> str:
     except Exception as e:
         logger.error(f"Error inesperado en STT client: {e}")
         raise
+
+
+async def stream_partial(audio_bytes: bytes, filename: str = "audio.wav") -> str:
+    """
+    STT streaming - por ahora devuelve vacío hasta implementar en el servicio STT.
+    Args:
+        audio_bytes: bytes de audio parcial
+        filename: nombre de archivo
+    Returns:
+        texto transcripto parcial (vacío por ahora)
+    """
+    # TODO: Implementar streaming STT en el servicio STT
+    # Por ahora, devolver vacío para evitar errores
+    return ""

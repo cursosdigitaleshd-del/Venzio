@@ -1,5 +1,8 @@
+import asyncio
 import json
 import secrets
+import time
+from collections import deque
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
@@ -111,9 +114,47 @@ async def public_voice_session(
     db.commit()
     db.refresh(db_session)
 
+    # Variables para STT streaming
+    current_audio_buffer = {}
+    utterance_partials = {}
+    current_utterance_id = None
+    stream_buffer = b""
+    partial_tasks = deque()
+    current_audio_size = 0
+    last_partial_time = 0
+    utterance_start = None
+    last_audio_time = None
+
+    MAX_AUDIO_BYTES = 5 * 1024 * 1024  # 5MB límite
+    STREAM_THRESHOLD = 8000  # ~400ms de audio
+    MAX_STREAM_BUFFER = 16000
+
     # Historial de conversación
     conversation_history: list[dict] = []
     full_transcript_parts: list[str] = []
+
+    async def process_partial_stt(chunk, utterance_id, ws, tasks_set):
+        """STT no bloqueante con cleanup automático"""
+        try:
+            partial = await asyncio.wait_for(
+                stt_client.stream_partial(chunk),
+                timeout=2.0
+            )
+            if partial and ws.client_state.name == "CONNECTED":
+                try:
+                    await ws.send_text(json.dumps({
+                        "type": "partial_transcript",
+                        "text": partial,
+                        "id": utterance_id
+                    }))
+                except (RuntimeError, Exception) as e:
+                    print(f"WebSocket send failed: {e}")
+        except asyncio.TimeoutError:
+            print("Partial STT timeout")
+        except Exception as e:
+            print(f"Partial STT failed: {e}")
+        finally:
+            tasks_set.discard(asyncio.current_task())
 
     try:
         await websocket.send_text(
@@ -133,53 +174,134 @@ async def public_voice_session(
             # Comando de texto
             if "text" in message:
                 data = json.loads(message["text"])
-                if data.get("type") == "end_session":
+
+                if data.get("type") == "audio_start":
+                    current_utterance_id = data.get("id", secrets.token_hex(8))
+                    current_audio_buffer[current_utterance_id] = []
+                    utterance_partials[current_utterance_id] = ""
+                    stream_buffer = b""
+                    current_audio_size = 0
+                    utterance_start = time.time()
+                    last_audio_time = time.time()
+
+                elif data.get("type") == "audio_end":
+                    if current_utterance_id and current_utterance_id in current_audio_buffer:
+                        # STT final
+                        audio_bytes = b"".join(current_audio_buffer[current_utterance_id])
+                        final_text = await stt_client.transcribe(audio_bytes)
+
+                        await websocket.send_text(json.dumps({
+                            "type": "final_transcript",
+                            "text": final_text,
+                            "id": current_utterance_id
+                        }))
+
+                        # Procesar respuesta
+                        if final_text:
+                            full_transcript_parts.append(f"Usuario: {final_text}")
+                            conversation_history.append({"role": "user", "content": final_text})
+
+                            system_prompt = llm.build_system_prompt(master_prompt)
+                            reply_text = await llm.chat_completion(
+                                conversation_history,
+                                system_prompt=system_prompt,
+                            )
+                            conversation_history.append({"role": "assistant", "content": reply_text})
+                            full_transcript_parts.append(f"Agente: {reply_text}")
+
+                            await websocket.send_text(
+                                json.dumps({"type": "reply_text", "text": reply_text})
+                            )
+
+                            # TTS
+                            audio_response = await tts_client.synthesize(reply_text, voice.model_file)
+                            await websocket.send_bytes(audio_response)
+
+                        # Cleanup
+                        del current_audio_buffer[current_utterance_id]
+                        del utterance_partials[current_utterance_id]
+                        current_utterance_id = None
+                        current_audio_size = 0
+                        utterance_start = None
+                        last_audio_time = None
+
+                elif data.get("type") == "end_session":
                     break
+
                 continue
 
-            # Audio bytes – pipeline STT → LLM → TTS
-            audio_bytes = message.get("bytes")
-            if not audio_bytes:
-                continue
+            # Audio bytes
+            elif "bytes" in message:
+                if not current_utterance_id:
+                    continue  # Protección contra audio sin start
 
-            try:
-                # 1. STT
-                user_text = await stt_client.transcribe(audio_bytes)
-                if not user_text:
-                    await websocket.send_text(
-                        json.dumps({"type": "error", "message": "No se detectó audio claro"})
-                    )
+                chunk = message["bytes"]
+                last_audio_time = time.time()
+
+                # Verificar límites de memoria
+                current_audio_size += len(chunk)
+                if current_audio_size > MAX_AUDIO_BYTES:
+                    print(f"Audio buffer exceeded {MAX_AUDIO_BYTES} bytes")
+                    current_audio_buffer[current_utterance_id].clear()
+                    current_audio_size = 0
+                    current_utterance_id = None
                     continue
 
-                full_transcript_parts.append(f"Usuario: {user_text}")
-                await websocket.send_text(
-                    json.dumps({"type": "transcript", "text": user_text})
-                )
+                current_audio_buffer[current_utterance_id].append(chunk)
 
-                # 2. LLM — usar prompt del cliente si existe
-                conversation_history.append({"role": "user", "content": user_text})
-                system_prompt = llm.build_system_prompt(master_prompt)
-                reply_text = await llm.chat_completion(
-                    conversation_history,
-                    system_prompt=system_prompt,
-                )
-                conversation_history.append({"role": "assistant", "content": reply_text})
-                full_transcript_parts.append(f"Agente: {reply_text}")
+                # Buffer para streaming
+                stream_buffer += chunk
+                if len(stream_buffer) > MAX_STREAM_BUFFER:
+                    stream_buffer = b""  # Reset si se desborda
+                    continue
 
-                await websocket.send_text(
-                    json.dumps({"type": "reply_text", "text": reply_text})
-                )
+                # Streaming STT
+                if len(stream_buffer) > STREAM_THRESHOLD:
+                    current_time = time.time()
+                    if current_time - last_partial_time > 0.2:  # Rate limiting
+                        last_partial_time = current_time
 
-                # 3. TTS
-                audio_response = await tts_client.synthesize(reply_text, voice.model_file)
-                await websocket.send_bytes(audio_response)
+                        # Control de concurrencia
+                        if len(partial_tasks) > 3:
+                            if partial_tasks:
+                                oldest_task = partial_tasks.popleft()
+                                oldest_task.cancel()
+                                try:
+                                    await oldest_task
+                                except asyncio.CancelledError:
+                                    pass
 
-            except RuntimeError as e:
-                await websocket.send_text(
-                    json.dumps({"type": "error", "message": str(e)})
-                )
+                        # Crear task no bloqueante
+                        task = asyncio.create_task(
+                            process_partial_stt(stream_buffer, current_utterance_id, websocket, partial_tasks)
+                        )
+                        partial_tasks.append(task)
+
+                # Check timeout por inactividad
+                current_time = time.time()
+                if (current_utterance_id and last_audio_time and
+                    (current_time - last_audio_time) > 5):  # 5s inactividad
+                    print("Utterance inactivity timeout")
+                    if current_utterance_id in current_audio_buffer:
+                        del current_audio_buffer[current_utterance_id]
+                    if current_utterance_id in utterance_partials:
+                        del utterance_partials[current_utterance_id]
+                    current_audio_size = 0
+                    current_utterance_id = None
+                    utterance_start = None
+                    last_audio_time = None
 
     except WebSocketDisconnect:
+        # Cancelar tasks pendientes
+        for task in partial_tasks:
+            task.cancel()
+        try:
+            await asyncio.gather(*partial_tasks, return_exceptions=True)
+        except asyncio.CancelledError:
+            pass
+        partial_tasks.clear()
+        current_audio_buffer.clear()
+        utterance_partials.clear()
         pass
     except Exception as e:
         print(f"Error en sesión pública {session_token}: {e}")

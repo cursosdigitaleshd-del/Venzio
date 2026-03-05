@@ -22,6 +22,7 @@
         vadInactivityTimeout: 30000, // ms inactividad total para cerrar sesión
         vadMaxSpeakingTime: 15000, // ms máx de habla continua antes de forzar envío
         humanDelay: 100, // ms delay before AI response
+        debugVAD: false, // Enable VAD logging for debugging
     };
 
     // ── State Machine ────────────────────────────────────────────────────────────
@@ -56,6 +57,7 @@
             this.currentSource = null;
             this.playbackToken = 0;
             this.isDecoding = false;
+            this.outputGain = null; // For fade-out
 
             // VAD properties
             this.vadInterval = null;
@@ -64,6 +66,18 @@
             this.inactivityTimer = null;
             this.speakingStartTime = null;
             this.lastVoiceTime = null;
+
+            // Pre-roll buffer
+            this.preRollBuffer = [];
+            this.preRollMaxChunks = 3; // 300ms at 100ms chunks
+
+            // Interruption control
+            this.interrupting = false;
+            this.interruptVoiceStart = null;
+
+            // Recording timing
+            this.recordingStartTime = null;
+            this.currentUtteranceId = null;
 
             this._build();
             this._loadVoices();
@@ -291,7 +305,20 @@
                 case 'session_ready':
                     this._addMessage('system', `🎙 Sesión iniciada — Voz: ${msg.voice}`);
                     break;
+                case 'partial_transcript':
+                    // Show live transcription only when user is speaking
+                    if (this.state === STATES.USER_SPEAKING) {
+                        this._setStatus(`📝 ${msg.text}`);
+                    }
+                    break;
+                case 'final_transcript':
+                    // Show final transcription and process
+                    this._addMessage('user', msg.text);
+                    this._setState(STATES.PROCESSING);
+                    this._setStatus('Procesando tu consulta...');
+                    break;
                 case 'transcript':
+                    // Legacy support for old transcript messages
                     this._addMessage('user', msg.text);
                     this._setState(STATES.PROCESSING);
                     this._setStatus('Procesando tu consulta...');
@@ -388,6 +415,9 @@
         _initAudioContext() {
             if (!this.audioCtx) {
                 this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                // Initialize output gain for fade-out
+                this.outputGain = this.audioCtx.createGain();
+                this.outputGain.connect(this.audioCtx.destination);
             }
         }
 
@@ -426,7 +456,7 @@
 
                 const source = this.audioCtx.createBufferSource();
                 source.buffer = audioBuffer;
-                source.connect(this.audioCtx.destination);
+                source.connect(this.outputGain); // Use output gain for fade-out control
 
                 this.currentSource = source;
 
@@ -500,7 +530,16 @@
         // ── VAD Methods ────────────────────────────────────────────────────────────
         async _startContinuousListening() {
             try {
-                this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                // Enhanced getUserMedia with echo cancellation
+                this.audioStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        channelCount: 1
+                    },
+                    video: false
+                });
 
                 this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 if (this.audioCtx.state === 'suspended') {
@@ -522,55 +561,80 @@
                         : 'audio/ogg',
                 });
 
+                // Continuous recording with pre-roll buffer
                 this.mediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) {
+                    if (e.data.size === 0) return;
+
+                    if (this.state === STATES.LISTENING) {
+                        // Maintain pre-roll buffer (last 300ms)
+                        this.preRollBuffer.push({
+                            chunk: e.data,
+                            time: Date.now()
+                        });
+                        this.preRollBuffer = this.preRollBuffer.filter(
+                            c => Date.now() - c.time < 300
+                        );
+                        // Memory protection
+                        if (this.preRollBuffer.length > 10) {
+                            this.preRollBuffer.shift();
+                        }
+                    } else if (this.state === STATES.USER_SPEAKING) {
+                        // Collect user speech chunks
                         this.audioChunks.push(e.data);
                     }
                 };
 
-                this.mediaRecorder.onstop = async () => {
-                    if (this.audioChunks.length === 0) return;
-
-                    const blob = new Blob(this.audioChunks, { type: this.mediaRecorder.mimeType });
-
-                    console.log('[Venzio] Final blob size:', blob.size);
-
-                    if (blob.size < 1000) {
-                        console.warn('[Venzio] Blob demasiado pequeño, ignorado');
-                        this.audioChunks = [];
-                    } else {
-                        const buffer = await blob.arrayBuffer();
-
-                        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                            this.ws.send(buffer);
-                            console.log('[Venzio] Audio enviado correctamente');
-                        }
-                    }
-
-                    this.audioChunks = [];
-
-                    // 🔥 Reiniciar grabación solo si sigue activa la sesión
-                    if (this.sessionActive) {
-                        setTimeout(() => {
-                            if (this.mediaRecorder && this.mediaRecorder.state === "inactive") {
-                                this.mediaRecorder.start();
-                            }
-                        }, 50);
-                    }
+                this.mediaRecorder.onstop = () => {
+                    // Send any pending audio when manually stopped
+                    this._sendPendingAudio();
                 };
 
-                // 🔥 IMPORTANTE: SIN timeslice
-                this.mediaRecorder.start();
+                // Start continuous recording with 100ms chunks
+                this.mediaRecorder.start(100);
 
                 this._startVAD();
                 this._startInactivityTimer();
 
-                console.log('[Venzio] VAD iniciado correctamente');
+                console.log('[Venzio] VAD con pre-roll iniciado correctamente');
 
             } catch (err) {
                 console.error('[Venzio] Error micrófono:', err);
                 this._setState(STATES.ERROR);
             }
+        }
+
+        _sendPendingAudio() {
+            if (this.audioChunks.length === 0) return;
+
+            const blob = new Blob(this.audioChunks, { type: this.mediaRecorder.mimeType });
+            const duration = Date.now() - this.recordingStartTime;
+
+            if (duration < 300) {
+                console.warn('[Venzio] Audio demasiado corto, ignorado');
+                this.audioChunks = [];
+                this.recordingStartTime = null;
+                return;
+            }
+
+            blob.arrayBuffer().then(buf => {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(buf);
+                }
+            });
+
+            this.audioChunks = [];
+            this.recordingStartTime = null;
+        }
+
+        _startRecordingAfterInterrupt() {
+            // Add pre-roll buffer to start of recording
+            this.audioChunks = this.preRollBuffer.map(c => c.chunk);
+            this.preRollBuffer = []; // Clear for next time
+
+            this.recordingStartTime = Date.now();
+            this._setState(STATES.USER_SPEAKING);
+            this._setStatus('🎤 Hablando...');
+            this._resetInactivityTimer();
         }
 
         _startVAD() {
@@ -597,7 +661,9 @@
         }
 
         _processVAD(db) {
-            console.log('[Venzio] VAD db:', db, 'threshold:', CONFIG.vadThreshold);
+            if (CONFIG.debugVAD) {
+                console.log('[Venzio] VAD db:', db, 'state:', this.state);
+            }
             const now = Date.now();
 
             if (db > CONFIG.vadThreshold) {
@@ -611,9 +677,20 @@
                         this._onVoiceStart();
                     }
                 } else if (this.state === STATES.AI_SPEAKING) {
-                    // Barge-in: interrupt AI
-                    this._interruptAI();
-                    this._onVoiceStart();
+                    // Interruption with confirmation (100ms continuous voice)
+                    if (db > -35) {
+                        if (!this.interruptVoiceStart) {
+                            this.interruptVoiceStart = now;
+                        }
+                        if (now - this.interruptVoiceStart > 100) {
+                            this.interruptVoiceStart = null;
+                            this._interruptAI();
+                            this._onVoiceStart();
+                        }
+                    } else {
+                        this.interruptVoiceStart = null;
+                    }
+                    return; // Don't process other VAD while AI is speaking
                 }
 
                 // Clear silence timers
@@ -648,17 +725,42 @@
         }
 
         _onVoiceStart() {
-            console.log('[Venzio] Voice detected, starting recording...');
+            console.log('[Venzio] Voice detected, starting recording with pre-roll...');
+
+            // Send audio_start metadata
+            const utteranceId = Date.now().toString();
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this.ws.send(JSON.stringify({
+                    type: 'audio_start',
+                    id: utteranceId
+                }));
+            }
+
+            // Add pre-roll buffer to start of recording
+            this.audioChunks = this.preRollBuffer.map(c => c.chunk);
+            this.preRollBuffer = []; // Clear for next time
+
+            this.recordingStartTime = Date.now();
+            this.currentUtteranceId = utteranceId; // Store for later
             this._setState(STATES.USER_SPEAKING);
-            this._setStatus('Hablando...');
+            this._setStatus('🎤 Hablando...');
             this._resetInactivityTimer();
         }
 
         _onVoiceEnd() {
             console.log('[Venzio] Voz finalizada, cerrando segmento...');
 
+            // Send audio_end metadata
+            if (this.currentUtteranceId && this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this.ws.send(JSON.stringify({
+                    type: 'audio_end',
+                    id: this.currentUtteranceId
+                }));
+            }
+
             this.silenceTimer = null;
             this.speakingStartTime = null;
+            this.currentUtteranceId = null;
 
             if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
                 this.mediaRecorder.stop(); // 🔥 Esto genera WebM válido
@@ -669,18 +771,36 @@
         }
 
         _interruptAI() {
+            // Lock to prevent multiple interruptions
+            if (this.interrupting) return;
+            this.interrupting = true;
+
             this.playbackToken = Date.now();
             this.audioQueue = [];
 
+            // Fade-out suave usando outputGain
             if (this.currentSource) {
-                try {
-                    this.currentSource.stop(0);
-                    this.currentSource.disconnect();
-                } catch (e) {}
-                this.currentSource = null;
+                this.outputGain.gain.setValueAtTime(1, this.audioCtx.currentTime);
+                this.outputGain.gain.exponentialRampToValueAtTime(
+                    0.001, // Muy bajo pero no cero (evita clicks)
+                    this.audioCtx.currentTime + 0.05 // 50ms fade-out
+                );
+
+            setTimeout(() => {
+                if (this.currentSource) {
+                    this.currentSource.stop();
+                    this.currentSource = null;
+                }
+                // Reset gain para próximos audios
+                this.outputGain.gain.setValueAtTime(1, this.audioCtx.currentTime);
+
+                // Start recording after interruption cooldown
+                this._startRecordingAfterInterrupt();
+                this.interrupting = false; // Unlock
+            }, 150); // 150ms cooldown to avoid echo
             }
 
-            this._setStatus('Interrumpido...');
+            this._setStatus('👤 Interrupción detectada...');
         }
 
         _onLongSilence() {
