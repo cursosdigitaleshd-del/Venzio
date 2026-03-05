@@ -27,7 +27,7 @@ class UserOut(BaseModel):
     master_prompt: str | None
     plan_id: int | None
     subscription_end_date: datetime | None
-    minutes_used: int
+    minutes_used: float
     subscription_start_date: datetime | None
     status: str
     is_active: bool
