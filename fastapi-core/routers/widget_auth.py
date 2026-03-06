@@ -34,7 +34,7 @@ async def widget_auth(site_id: str, request: Request, db: Session = Depends(get_
         raise HTTPException(status_code=403, detail="site_id inválido o inactivo")
 
     # 2. Validar Origin / Same-origin
-    origin = request.headers.get("origin")
+    origin = request.headers.get("origin") or request.headers.get("referer")
     host = request.url.hostname.lower()
 
     # 1️⃣ Same-origin permitido (sin Origin header)
@@ -46,20 +46,13 @@ async def widget_auth(site_id: str, request: Request, db: Session = Depends(get_
 
     # 2️⃣ Cross-origin → validar contra dominios del site
     else:
-        parsed_origin = urlparse(origin).netloc.lower()
-        allowed_domains = {
-            site.domain_allowed.lower(),
-            "venzio.online",
-            "www.venzio.online",
-            "localhost:8000",
-            "127.0.0.1:8000"
-        }
+        if origin:
+            host = urlparse(origin).hostname
+        else:
+            host = None
 
-        if parsed_origin not in allowed_domains:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Dominio no autorizado: {parsed_origin}",
-            )
+        if not host or not host.endswith(site.domain_allowed):
+            raise HTTPException(status_code=401, detail="Domain not allowed")
 
     # 3. Obtener usuario
     user = db.get(User, site.user_id)
