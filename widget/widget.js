@@ -527,8 +527,10 @@
                 });
 
                 this.mediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) {
-                        this.audioChunks.push(e.data);
+                    if (!this.isRecording) return;
+
+                    if (e.data && e.data.size > 0) {
+                        this.currentRecordingChunks.push(e.data);
                     }
                 };
 
@@ -659,6 +661,12 @@
             this.silenceTimer = null;
             this.speakingStartTime = null;
 
+            if (this.currentRecordingChunks.length === 0) {
+                console.warn("[Venzio] No audio captured");
+                this._setState(STATES.LISTENING);
+                return;
+            }
+
             if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
                 this.mediaRecorder.stop(); // 🔥 Esto genera WebM válido
             }
@@ -672,6 +680,8 @@
                 console.warn("[Venzio] No audio chunks");
                 return;
             }
+
+            console.log("chunks:", this.audioChunks.length);
 
             for (const chunk of this.audioChunks) {
                 const buf = await chunk.arrayBuffer();
