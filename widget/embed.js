@@ -1,41 +1,95 @@
 /**
  * Venzio Embed Script
- * Añade el widget de voz a cualquier sitio con una sola línea:
+ * Carga e inicializa el widget de voz
  *
- *   <script src="https://TU_DOMINIO/widget/embed.js"
- *           data-api="https://TU_DOMINIO"
- *           data-name="Mi Agente"></script>
+ * Uso:
+ * <script
+ *   src="https://dominio/widget/embed.js"
+ *   data-api="https://dominio"
+ *   data-name="Agente"
+ *   data-site-id="SITE_ID">
+ * </script>
  */
+
 (function () {
+    'use strict';
+
     const script = document.currentScript || (function () {
         const scripts = document.getElementsByTagName('script');
         return scripts[scripts.length - 1];
     })();
 
-    const apiBase = script.getAttribute('data-api') || 'http://localhost:8000';
+    // Read attributes
+    const apiBase = script.getAttribute('data-api') || 'https://venzio.online';
     const agentName = script.getAttribute('data-name') || 'Agente Virtual';
-    const wsBase = apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
+    const siteId = script.getAttribute('data-site-id');
 
-    window.VENZIO_API = apiBase;
-    window.VENZIO_WS = wsBase;
-    window.VENZIO_NAME = agentName;
+    if (!siteId) {
+        console.error('[Venzio] data-site-id is required');
+        return;
+    }
 
-    function load(url, type, cb) {
-        if (type === 'css') {
-            const l = document.createElement('link');
-            l.rel = 'stylesheet'; l.href = url;
-            l.onload = cb; document.head.appendChild(l);
-        } else {
-            const s = document.createElement('script');
-            s.src = url; s.async = true;
-            s.onload = cb; document.head.appendChild(s);
+    // Load CSS
+    function loadCSS(url) {
+        if (document.getElementById('vz-styles')) return;
+
+        const link = document.createElement('link');
+        link.id = 'vz-styles';
+        link.rel = 'stylesheet';
+        link.href = url;
+        document.head.appendChild(link);
+    }
+
+    // Load JS module
+    function loadJS(url) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.type = 'module';
+            script.src = url;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    // Initialize widget
+    async function initWidget() {
+        try {
+            // Load CSS
+            const cssUrl = `${apiBase.replace(/\/$/, '')}/widget/widget.css`;
+            loadCSS(cssUrl);
+
+            // Load widget module
+            const jsUrl = `${apiBase.replace(/\/$/, '')}/widget/widget.js`;
+            await loadJS(jsUrl);
+
+            // Import and initialize
+            const { VenzioWidget } = await import(jsUrl);
+
+            // Get voice ID (you might need to fetch available voices)
+            // For now, assume voice ID 1 or fetch from API
+            const voiceId = 1; // TODO: Make this configurable or fetch from API
+
+            // Create widget instance
+            window.VenzioWidget = new VenzioWidget({
+                apiBase: apiBase,
+                agentName: agentName,
+                siteId: siteId,
+                voiceId: voiceId,
+            });
+
+            console.log('[Venzio] Widget initialized successfully');
+
+        } catch (error) {
+            console.error('[Venzio] Failed to initialize widget:', error);
         }
     }
 
-    const base = apiBase.replace(/\/$/, '') + '/widget';
-    load(base + '/widget.css', 'css', function () {
-        load(base + '/widget.js', 'js', function () {
-            console.info('[Venzio] Widget cargado ✓');
-        });
-    });
+    // Wait for DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initWidget);
+    } else {
+        initWidget();
+    }
+
 })();
