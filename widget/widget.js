@@ -331,11 +331,7 @@
                 this.audioChunks = [];
 
                 this.mediaRecorder = new MediaRecorder(this.audioStream, {
-                    mimeType: MediaRecorder.isTypeSupported('audio/wav;codecs=pcm')
-                        ? 'audio/wav;codecs=pcm'
-                        : MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-                            ? 'audio/webm;codecs=opus'
-                            : 'audio/ogg',
+                    mimeType: 'audio/webm;codecs=opus'
                 });
 
                 this.mediaRecorder.ondataavailable = (e) => {
@@ -344,11 +340,11 @@
 
                 this.mediaRecorder.onstop = () => {
                     const blob = new Blob(this.audioChunks, { type: this.mediaRecorder.mimeType });
-                    blob.arrayBuffer().then(buf => {
-                        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                            this.ws.send(buf);
-                        }
-                    });
+                    console.log("Blob type:", blob.type);
+                    console.log("Blob size:", blob.size);
+                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                        this.ws.send(blob);
+                    }
                 };
 
                 this.mediaRecorder.start();
@@ -517,9 +513,7 @@
                 this.audioChunks = [];
 
                 this.mediaRecorder = new MediaRecorder(this.audioStream, {
-                    mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-                        ? 'audio/webm;codecs=opus'
-                        : 'audio/ogg',
+                    mimeType: 'audio/webm;codecs=opus'
                 });
 
                 this.mediaRecorder.ondataavailable = (e) => {
@@ -539,10 +533,8 @@
                         console.warn('[Venzio] Blob demasiado pequeño, ignorado');
                         this.audioChunks = [];
                     } else {
-                        const buffer = await blob.arrayBuffer();
-
                         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                            this.ws.send(buffer);
+                            this.ws.send(blob);
                             console.log('[Venzio] Audio enviado correctamente');
                         }
                     }
