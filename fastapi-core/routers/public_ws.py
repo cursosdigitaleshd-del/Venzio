@@ -191,8 +191,11 @@ async def public_voice_session(
                     "content": user_text
                 })
 
+                # Limitar historial a los últimos 6 mensajes
+                conversation_history = conversation_history[-6:]
+
                 reply_text = await llm.chat_completion(
-                    user_message=user_text,
+                    messages=conversation_history,
                     master_prompt=master_prompt
                 )
                 

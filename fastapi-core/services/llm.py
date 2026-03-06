@@ -34,35 +34,31 @@ def build_system_prompt(master_prompt: str | None = None) -> str:
 
 
 async def chat_completion(
-    user_message: str,
+    messages: list[dict],
     master_prompt: str | None = None,
     max_tokens: Optional[int] = None,
     temperature: Optional[float] = None,
 ) -> str:
     """
-    Llama a GPT-4o mini con un mensaje de usuario y devuelve la respuesta.
+    Llama a GPT-4o mini con historial de conversación y devuelve la respuesta.
     Args:
-        user_message: mensaje del usuario
+        messages: lista de mensajes del historial de conversación
         master_prompt: prompt maestro personalizado (opcional)
         max_tokens: límite de tokens (usa config por defecto)
         temperature: temperatura (usa config por defecto)
     Returns:
         string con la respuesta del LLM
     """
-    system_prompt = BASE_INSTRUCTIONS
+    system_prompt = build_system_prompt(master_prompt)
 
-    if master_prompt:
-        system_prompt = f"{BASE_INSTRUCTIONS}\n\n{master_prompt}"
-
-    messages = [
+    full_messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_message}
-    ]
+    ] + messages
 
     try:
         response = await client.chat.completions.create(
             model=settings.llm_model,
-            messages=messages,
+            messages=full_messages,
             max_tokens=max_tokens or settings.llm_max_tokens,
             temperature=temperature if temperature is not None else settings.llm_temperature,
             timeout=settings.llm_timeout,
@@ -77,13 +73,18 @@ async def chat_completion(
 
 async def generate_summary(transcript: str) -> str:
     """Genera un resumen ejecutivo de la conversación para enviar vía webhook."""
-    user_message = (
-        f"Resume esta conversación de ventas en 3-5 puntos clave. "
-        f"Incluye: intención del cliente, producto de interés, objeciones y resultado.\n\n"
-        f"TRANSCRIPCIÓN:\n{transcript}"
-    )
+    messages = [
+        {
+            "role": "user",
+            "content": (
+                f"Resume esta conversación de ventas en 3-5 puntos clave. "
+                f"Incluye: intención del cliente, producto de interés, objeciones y resultado.\n\n"
+                f"TRANSCRIPCIÓN:\n{transcript}"
+            ),
+        }
+    ]
     return await chat_completion(
-        user_message=user_message,
+        messages=messages,
         master_prompt="Eres un analista de ventas. Responde en español con bullet points simples.",
         max_tokens=300,
         temperature=0.3,
