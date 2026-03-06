@@ -604,9 +604,18 @@
                 });
 
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    // Enviar en orden correcto: start → audio → end
+                    console.log("[Venzio] Enviando audio:", wavBuffer.byteLength);
+
+                    // 1️⃣ iniciar transmisión
                     this.ws.send(JSON.stringify({ type: "audio_start" }));
+
+                    // 2️⃣ enviar WAV
                     this.ws.send(wavBuffer);
+
+                    // 3️⃣ esperar un frame del event loop
+                    await new Promise(resolve => setTimeout(resolve, 0));
+
+                    // 4️⃣ cerrar transmisión
                     this.ws.send(JSON.stringify({ type: "audio_end" }));
 
                     console.log('[Venzio] ✓ WAV enviado');
