@@ -17,7 +17,7 @@
         // VAD Configuration
         vadThreshold: -40,        // dB threshold — menos sensible al ruido de fondo
         vadMinDuration: 200,      // ms para confirmar que es voz real (evita clics / tos)
-        vadSilenceTimeout: 400,   // ms de silencio antes de cortar (más natural)
+        vadSilenceTimeout: 600,   // ms de silencio antes de cortar (más natural)
         vadLongSilence: 10000,    // ms largo silencio para intervención IA
         vadInactivityTimeout: 30000, // ms inactividad total para cerrar sesión
         vadMaxSpeakingTime: 15000, // ms máx de habla continua antes de forzar envío
@@ -527,11 +527,11 @@
                 });
 
                 this.mediaRecorder.ondataavailable = (e) => {
-                    if (!this.isRecording) return;
+                    if (!e.data || e.data.size === 0) return;
 
-                    if (e.data && e.data.size > 0) {
-                        this.currentRecordingChunks.push(e.data);
-                    }
+                    // guardar SIEMPRE
+                    this.currentRecordingChunks.push(e.data);
+                    console.log('[Venzio] Chunk captured:', e.data.size, 'bytes');
                 };
 
                 this.mediaRecorder.onstop = async () => {
@@ -647,8 +647,9 @@
                 }));
             }
 
-            this.isRecording = true;
+            // Limpiar buffer ANTES de empezar a grabar
             this.currentRecordingChunks = [];
+            this.isRecording = true;
 
             this._setState(STATES.USER_SPEAKING);
             this._setStatus('🎤 Hablando...');
