@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from auth import create_widget_token
 from database import get_db
-from models import WidgetSite
+from models import WidgetSite, User, Voice
 
 router = APIRouter(tags=["Widget Auth"])
 
@@ -18,6 +18,11 @@ async def widget_auth(site_id: str, request: Request, db: Session = Depends(get_
     Validaciones:
     1. site_id existe y está activo en la BD
     2. Origin del request coincide exactamente con domain_allowed del site
+
+    Retorna:
+    - token: JWT temporal
+    - voice_id: ID de la voz activa del usuario
+    - agent_name: Nombre del agente (usuario o "Agente Venzio")
     """
     # 1. Buscar site
     site = db.query(WidgetSite).filter(
@@ -56,10 +61,25 @@ async def widget_auth(site_id: str, request: Request, db: Session = Depends(get_
                 detail=f"Dominio no autorizado: {parsed_origin}",
             )
 
-    # 3. Generar JWT temporal (5 min, type="widget")
+    # 3. Obtener usuario
+    user = db.get(User, site.user_id)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=403, detail="Usuario no encontrado o inactivo")
+
+    # 4. Obtener voz activa (primera voz activa como default)
+    voice = db.query(Voice).filter(Voice.is_active == True).first()
+    if not voice:
+        raise HTTPException(status_code=500, detail="No hay voces activas disponibles")
+
+    # 5. Determinar nombre del agente
+    agent_name = user.full_name or user.company_name or "Agente Venzio"
+
+    # 6. Generar JWT temporal (5 min, type="widget")
     token = create_widget_token(site_id=site.site_id, user_id=site.user_id)
 
     return {
         "token": token,
+        "voice_id": voice.id,
+        "agent_name": agent_name,
         "expires_in": 300,  # 5 minutos en segundos
     }

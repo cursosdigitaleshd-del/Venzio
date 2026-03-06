@@ -1,91 +1,121 @@
 /**
- * Venzio Embed Script
- * Carga e inicializa el widget de voz
- *
- * Uso:
- * <script
- *   src="https://dominio/widget/embed.js"
- *   data-api="https://dominio"
- *   data-name="Agente"
- *   data-site-id="SITE_ID">
- * </script>
+ * Venzio Widget Embed Loader
+ * Loader universal que inicializa el widget de voz
  */
 
-(function () {
+(function() {
     'use strict';
 
-    const script = document.currentScript || (function () {
-        const scripts = document.getElementsByTagName('script');
-        return scripts[scripts.length - 1];
-    })();
-
-    // Read attributes
-    const apiBase = script.getAttribute('data-api') || 'https://venzio.online';
-    const agentName = script.getAttribute('data-name') || 'Agente Virtual';
-    const siteId = script.getAttribute('data-site-id');
-
-    if (!siteId) {
-        console.error('[Venzio] data-site-id is required');
+    // Evitar inicialización múltiple
+    if (window.VenzioWidgetInstance) {
+        console.warn('[Venzio] Widget ya inicializado');
         return;
     }
 
-    // Load CSS
-    function loadCSS(url) {
-        if (document.getElementById('vz-styles')) return;
-
-        const link = document.createElement('link');
-        link.id = 'vz-styles';
-        link.rel = 'stylesheet';
-        link.href = url;
-        document.head.appendChild(link);
+    // Buscar el script de embed
+    const script = document.currentScript;
+    if (!script) {
+        console.error('[Venzio] No se pudo encontrar el script de embed');
+        return;
     }
 
-    // Load JS module
-    function loadJS(url) {
+    // Leer atributos del script
+    const siteId = script.getAttribute('data-site-id');
+    const agentName = script.getAttribute('data-name') || 'Agente Venzio';
+
+    if (!siteId) {
+        console.error('[Venzio] data-site-id es requerido');
+        return;
+    }
+
+    // Determinar URL base del API desde la URL del script
+    const scriptUrl = new URL(script.src);
+    const apiBase = `${scriptUrl.protocol}//${scriptUrl.host}`;
+
+    // Función para cargar script dinámicamente
+    function loadScript(src) {
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.type = 'module';
-            script.src = url;
+            script.src = src;
             script.onload = resolve;
             script.onerror = reject;
             document.head.appendChild(script);
         });
     }
 
-    // Initialize widget
+    // Función para cargar CSS dinámicamente
+    function loadCSS(href) {
+        return new Promise((resolve, reject) => {
+            // Verificar si ya está cargado
+            if (document.getElementById('vz-styles')) {
+                resolve();
+                return;
+            }
+
+            const link = document.createElement('link');
+            link.id = 'vz-styles';
+            link.rel = 'stylesheet';
+            link.href = href;
+            link.onload = resolve;
+            link.onerror = reject;
+            document.head.appendChild(link);
+        });
+    }
+
+    // Función principal de inicialización
     async function initWidget() {
         try {
-            // Load CSS
-            const cssUrl = `${apiBase.replace(/\/$/, '')}/widget/widget.css`;
-            loadCSS(cssUrl);
+            console.log('[Venzio] Inicializando widget...');
 
-            // Load widget module
-            const jsUrl = `${apiBase.replace(/\/$/, '')}/widget/widget.js`;
-            await loadJS(jsUrl);
+            // 1. Obtener autenticación
+            const authUrl = `${apiBase}/widget/auth?site_id=${encodeURIComponent(siteId)}`;
+            const authResponse = await fetch(authUrl);
 
-            // Import and initialize
-            const { VenzioWidget } = await import(jsUrl);
+            if (!authResponse.ok) {
+                throw new Error(`Auth failed: ${authResponse.status}`);
+            }
 
-            // Get voice ID (you might need to fetch available voices)
-            // For now, assume voice ID 1 or fetch from API
-            const voiceId = 1; // TODO: Make this configurable or fetch from API
+            const authData = await authResponse.json();
+            console.log('[Venzio] Autenticación exitosa');
 
-            // Create widget instance
-            window.VenzioWidget = new VenzioWidget({
-                apiBase: apiBase,
-                agentName: agentName,
+            // 2. Cargar CSS
+            await loadCSS(`${apiBase}/widget/widget.css`);
+            console.log('[Venzio] CSS cargado');
+
+            // 3. Cargar widget.js
+            await loadScript(`${apiBase}/widget/widget.js`);
+            console.log('[Venzio] Widget.js cargado');
+
+            // 4. Esperar a que VenzioWidget esté disponible
+            let attempts = 0;
+            while (!window.VenzioWidget && attempts < 50) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            if (!window.VenzioWidget) {
+                throw new Error('VenzioWidget no se cargó correctamente');
+            }
+
+            // 5. Instanciar el widget
+            const widget = new window.VenzioWidget({
+                apiBase: `${apiBase}/api`,
                 siteId: siteId,
-                voiceId: voiceId,
+                voiceId: authData.voice_id,
+                token: authData.token,
+                agentName: agentName
             });
 
-            console.log('[Venzio] Widget initialized successfully');
+            window.VenzioWidgetInstance = widget;
+            console.log('[Venzio] Widget inicializado correctamente');
 
         } catch (error) {
-            console.error('[Venzio] Failed to initialize widget:', error);
+            console.error('[Venzio] Error inicializando widget:', error);
         }
     }
 
-    // Wait for DOM ready
+    // Iniciar cuando el DOM esté listo
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initWidget);
     } else {

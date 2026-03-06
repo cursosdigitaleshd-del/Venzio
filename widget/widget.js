@@ -22,11 +22,17 @@ const STATES = {
 
 class VenzioWidget {
     constructor(options = {}) {
+        // Validar parámetros requeridos
+        if (!options.siteId || !options.voiceId || !options.token) {
+            throw new Error('siteId, voiceId y token son requeridos');
+        }
+
         this.options = {
             apiBase: options.apiBase || CONFIG.api.baseUrl,
             agentName: options.agentName || 'Agente Venzio',
             siteId: options.siteId,
             voiceId: options.voiceId,
+            token: options.token,
             ...options
         };
 
@@ -140,32 +146,19 @@ class VenzioWidget {
 
     // ── WebSocket Connection ──────────────────────────────────────────────────
     async _connectWebSocket() {
-        if (!this.options.voiceId) {
-            this._addMessage('error', 'No voice selected');
+        if (!this.options.voiceId || !this.options.token) {
+            this._addMessage('error', 'Configuración incompleta');
             return;
         }
 
         this._setState(STATES.CONNECTING);
 
         try {
-            const token = await this._getToken();
-            await this.wsClient.connect(this.options.voiceId, token);
+            await this.wsClient.connect(this.options.voiceId, this.options.token);
         } catch (error) {
             console.error('[Widget] Connection failed:', error);
             this._setState(STATES.ERROR);
         }
-    }
-
-    async _getToken() {
-        const authUrl = `${this.options.apiBase.replace('/api', '')}/widget/auth?site_id=${encodeURIComponent(this.options.siteId)}`;
-
-        const response = await fetch(authUrl);
-        if (!response.ok) {
-            throw new Error(`Auth failed: ${response.status}`);
-        }
-
-        const { token } = await response.json();
-        return token;
     }
 
     // ── UI Management ────────────────────────────────────────────────────────
@@ -310,4 +303,10 @@ class VenzioWidget {
     }
 }
 
+// Export for module system and global access
 export { VenzioWidget };
+
+// Make available globally for embed.js
+if (typeof window !== 'undefined') {
+    window.VenzioWidget = VenzioWidget;
+}
