@@ -162,7 +162,7 @@ async def public_voice_session(
 
             try:
                 # ── 1. Transcripción (STT) ─────────────────────────────────────
-                print(f"[WebSocket] Iniciando STT...")
+                print(f"[WebSocket] Iniciando STT... Audio buffer: {len(audio_bytes)} bytes")
                 user_text = await stt_client.transcribe(audio_bytes)
                 
                 if not user_text or len(user_text.strip()) < 2:

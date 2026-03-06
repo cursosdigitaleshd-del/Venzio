@@ -604,7 +604,11 @@
                 });
 
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    // Enviar en orden correcto: start → audio → end
+                    this.ws.send(JSON.stringify({ type: "audio_start" }));
                     this.ws.send(wavBuffer);
+                    this.ws.send(JSON.stringify({ type: "audio_end" }));
+
                     console.log('[Venzio] ✓ WAV enviado');
                     this._setStatus('Transcribiendo...');
                 } else {
