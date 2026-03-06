@@ -192,7 +192,7 @@ async def public_voice_session(
                 })
 
                 reply_text = await llm.chat_completion(
-                    conversation_history,
+                    user_message=user_text,
                     master_prompt=master_prompt
                 )
                 

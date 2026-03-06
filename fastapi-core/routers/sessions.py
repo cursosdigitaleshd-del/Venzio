@@ -72,7 +72,6 @@ async def voice_session(
 
                     # Si pasa todas las validaciones
                     master_prompt = user.master_prompt
-                    db_session.user_id = user.id
                 else:
                     user = None
         except Exception:
@@ -104,6 +103,11 @@ async def voice_session(
     db.add(db_session)
     db.commit()
     db.refresh(db_session)
+
+    # Asignar user_id si hay usuario autenticado
+    if user:
+        db_session.user_id = user.id
+        db.commit()
 
     # Historial de conversación para el LLM
     conversation_history: list[dict] = []
@@ -155,7 +159,10 @@ async def voice_session(
 
                 # 2. LLM – Respuesta
                 conversation_history.append({"role": "user", "content": user_text})
-                reply_text = await llm.chat_completion(conversation_history, system_prompt=master_prompt)
+                reply_text = await llm.chat_completion(
+                    user_message=user_text,
+                    master_prompt=master_prompt
+                )
                 conversation_history.append({"role": "assistant", "content": reply_text})
                 full_transcript_parts.append(f"Agente: {reply_text}")
 
