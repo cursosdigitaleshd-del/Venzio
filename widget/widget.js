@@ -676,14 +676,15 @@
         }
 
         async _sendRecordedAudio() {
-            if (this.audioChunks.length === 0) {
-                console.warn("[Venzio] No audio chunks");
+            if (this.currentRecordingChunks.length === 0) {
+                console.warn("[Venzio] No audio chunks captured");
+                this._setState(STATES.LISTENING);
                 return;
             }
 
-            console.log("chunks:", this.audioChunks.length);
+            console.log("chunks:", this.currentRecordingChunks.length);
 
-            for (const chunk of this.audioChunks) {
+            for (const chunk of this.currentRecordingChunks) {
                 const buf = await chunk.arrayBuffer();
 
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -698,7 +699,7 @@
                 }));
             }
 
-            this.audioChunks = [];
+            this.currentRecordingChunks = [];
             this.currentUtteranceId = null;
         }
 
