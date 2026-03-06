@@ -1,9 +1,9 @@
 /**
- * Venzio Voice Widget v3.0 - WAV Conversion Edition
+ * Venzio Voice Widget v4.0 - Direct WAV Recording
  * Compatible con faster-whisper local + ffmpeg/pydub
- * 
- * SOLUCIÓN: Convierte WebM → WAV en browser antes de enviar
- * Esto garantiza que ffmpeg/pydub siempre puedan procesar el audio
+ *
+ * SOLUCIÓN: Graba audio directamente como WAV usando ScriptProcessor
+ * Elimina MediaRecorder y conversión WebM → WAV
  */
 
 (function (window, document) {
@@ -90,64 +90,7 @@
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // Audio Processor - Convierte WebM → WAV
-    // ══════════════════════════════════════════════════════════════════════════
-    class AudioProcessor {
-        constructor(sampleRate = 16000) {
-            this.sampleRate = sampleRate;
-            this.encoder = new WAVEncoder(sampleRate, 1); // Mono
-        }
 
-        /**
-         * Convierte Blob de audio (WebM/OGG) a WAV
-         */
-        async convertToWAV(audioBlob) {
-            try {
-                // 1. Decodificar audio a AudioBuffer
-                const arrayBuffer = await audioBlob.arrayBuffer();
-                
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)({
-                    sampleRate: this.sampleRate
-                });
-                
-                const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-                
-                // 2. Extraer samples (mono)
-                let samples;
-                if (audioBuffer.numberOfChannels === 1) {
-                    samples = audioBuffer.getChannelData(0);
-                } else {
-                    // Mezclar canales a mono
-                    const left = audioBuffer.getChannelData(0);
-                    const right = audioBuffer.getChannelData(1);
-                    samples = new Float32Array(left.length);
-                    for (let i = 0; i < left.length; i++) {
-                        samples[i] = (left[i] + right[i]) / 2;
-                    }
-                }
-                
-                // 3. Codificar a WAV
-                const wavBuffer = this.encoder.encode(samples);
-                
-                if (CONFIG.debug) {
-                    console.log('[AudioProcessor] Conversión:', {
-                        input: `${audioBlob.size} bytes (${audioBlob.type})`,
-                        output: `${wavBuffer.byteLength} bytes (WAV)`,
-                        duration: `${audioBuffer.duration.toFixed(2)}s`,
-                        sampleRate: `${audioBuffer.sampleRate}Hz`,
-                        channels: audioBuffer.numberOfChannels,
-                    });
-                }
-                
-                return new Blob([wavBuffer], { type: 'audio/wav' });
-                
-            } catch (err) {
-                console.error('[AudioProcessor] Error:', err);
-                throw err;
-            }
-        }
-    }
 
     // ══════════════════════════════════════════════════════════════════════════
     // Widget Principal
@@ -156,10 +99,10 @@
         constructor() {
             this.state = STATES.IDLE;
             this.ws = null;
-            this.mediaRecorder = null;
             this.audioStream = null;
             this.audioCtx = null;
             this.analyser = null;
+            this.processor = null;
             this.voices = [];
             this.selectedVoiceId = null;
             this.isOpen = false;
@@ -173,14 +116,13 @@
             this.voiceDetectedTime = null;
             this.lastVoiceTime = null;
             this.silenceCheckInterval = null;
-            
-            // Recording buffer
-            this.currentRecordingChunks = [];
-            this.isRecording = false;
-            this.recordingFormat = null;
 
-            // Audio processor para conversión WAV
-            this.audioProcessor = new AudioProcessor(CONFIG.sampleRate);
+            // Recording
+            this.isRecordingVoice = false;
+            this.sampleBuffer = [];
+
+            // WAV encoder
+            this.wavEncoder = new WAVEncoder(CONFIG.sampleRate, 1);
 
             this._build();
             this._loadVoices();
@@ -443,7 +385,7 @@
             }
         }
 
-        // ── Recording con MediaRecorder ────────────────────────────────────────
+        // ── Recording con ScriptProcessor ───────────────────────────────────────
         async _startListening() {
             try {
                 this.audioStream = await navigator.mediaDevices.getUserMedia({
@@ -466,27 +408,24 @@
                 this.analyser.fftSize = 2048;
                 this.analyser.smoothingTimeConstant = 0.5;
 
+                // ScriptProcessor para captura de samples
+                this.processor = this.audioCtx.createScriptProcessor(4096, 1, 1);
+
                 const source = this.audioCtx.createMediaStreamSource(this.audioStream);
                 source.connect(this.analyser);
+                source.connect(this.processor);
+                this.processor.connect(this.audioCtx.destination);
 
-                // MediaRecorder - usa formato nativo del browser
-                const mimeType = this._getBestFormat();
-                this.recordingFormat = mimeType;
-                
-                console.log('[Venzio] MediaRecorder format:', mimeType);
+                this.processor.onaudioprocess = (event) => {
+                    const samples = event.inputBuffer.getChannelData(0);
 
-                this.mediaRecorder = new MediaRecorder(this.audioStream, {
-                    mimeType: mimeType,
-                    audioBitsPerSecond: 128000
-                });
-
-                this.mediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0 && this.isRecording) {
-                        this.currentRecordingChunks.push(e.data);
+                    // Acumular samples si está grabando voz
+                    if (this.isRecordingVoice) {
+                        this.sampleBuffer.push(...samples);
                     }
                 };
 
-                this.mediaRecorder.start(CONFIG.recordingChunkSize);
+                console.log('[Venzio] ScriptProcessor initialized');
 
                 this._setState(STATES.LISTENING);
                 this._setStatus('Escuchando...');
@@ -499,36 +438,15 @@
             }
         }
 
-        _getBestFormat() {
-            const formats = [
-                'audio/webm;codecs=opus',
-                'audio/webm',
-                'audio/ogg;codecs=opus',
-                'audio/ogg',
-            ];
-
-            for (const fmt of formats) {
-                if (MediaRecorder.isTypeSupported(fmt)) {
-                    return fmt;
-                }
-            }
-
-            return ''; // Browser default
-        }
-
         _stopListening() {
             this._stopVAD();
-            
-            if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-                this.mediaRecorder.stop();
-            }
-            
+
             if (this.audioStream) {
                 this.audioStream.getTracks().forEach(t => t.stop());
             }
-            
-            this.isRecording = false;
-            this.currentRecordingChunks = [];
+
+            this.isRecordingVoice = false;
+            this.sampleBuffer = [];
         }
 
         // ── VAD ────────────────────────────────────────────────────────────────
@@ -560,16 +478,15 @@
 
         _getVolumeDB() {
             if (!this.analyser) return -100;
-            
-            const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-            this.analyser.getByteFrequencyData(dataArray);
+
+            const dataArray = new Float32Array(this.analyser.fftSize);
+            this.analyser.getFloatTimeDomainData(dataArray);
 
             let sum = 0;
             for (let i = 0; i < dataArray.length; i++) {
-                const amplitude = dataArray[i] / 255;
-                sum += amplitude * amplitude;
+                sum += dataArray[i] * dataArray[i];
             }
-            
+
             const rms = Math.sqrt(sum / dataArray.length);
             return 20 * Math.log10(rms || 0.0001);
         }
@@ -614,21 +531,21 @@
         }
 
         _onVoiceStart() {
-            if (this.isRecording) return;
-            
-            this.isRecording = true;
-            this.currentRecordingChunks = [];
+            if (this.isRecordingVoice) return;
+
+            this.isRecordingVoice = true;
+            this.sampleBuffer = [];
             this._setState(STATES.USER_SPEAKING);
             this._setStatus('🎤 Hablando...');
             this.$micBtn.classList.add('recording');
         }
 
         _onVoiceEnd() {
-            if (!this.isRecording) return;
-            
-            this.isRecording = false;
+            if (!this.isRecordingVoice) return;
+
+            this.isRecordingVoice = false;
             this.voiceDetectedTime = null;
-            
+
             if (this.silenceCheckInterval) {
                 clearInterval(this.silenceCheckInterval);
                 this.silenceCheckInterval = null;
@@ -636,46 +553,44 @@
 
             this.$micBtn.classList.remove('recording');
             this._setState(STATES.PROCESSING);
-            this._setStatus('Convirtiendo audio...');
+            this._setStatus('Procesando audio...');
 
             this._sendRecordedAudio();
         }
 
-        // ── CONVERSIÓN A WAV Y ENVÍO ───────────────────────────────────────────
+        // ── ENVÍO DE AUDIO WAV ──────────────────────────────────────────────────
         async _sendRecordedAudio() {
-            if (this.currentRecordingChunks.length === 0) {
-                console.warn('[Venzio] No hay chunks para enviar');
+            if (this.sampleBuffer.length === 0) {
+                console.warn('[Venzio] No hay samples para enviar');
                 this._setState(STATES.LISTENING);
                 this._setStatus('Escuchando...');
                 return;
             }
 
+            // Check mínimo duración (400ms a 16kHz = 6400 samples)
+            const minSamples = CONFIG.sampleRate * 0.4;
+            if (this.sampleBuffer.length < minSamples) {
+                console.warn('[Venzio] Audio muy corto, descartando');
+                this._setState(STATES.LISTENING);
+                this._setStatus('Escuchando...');
+                this.sampleBuffer = [];
+                return;
+            }
+
             try {
-                // 1. Crear blob original (WebM/OGG)
-                const originalBlob = new Blob(
-                    this.currentRecordingChunks,
-                    { type: this.recordingFormat }
-                );
-                
-                console.log('[Venzio] Audio original:', {
-                    format: originalBlob.type,
-                    size: `${(originalBlob.size / 1024).toFixed(1)} KB`,
-                    chunks: this.currentRecordingChunks.length
+                // 1. Codificar samples acumulados a WAV
+                const samples = new Float32Array(this.sampleBuffer);
+                const wavBuffer = this.wavEncoder.encode(samples);
+
+                console.log('[Venzio] WAV generado:', {
+                    samples: samples.length,
+                    duration: `${(samples.length / CONFIG.sampleRate).toFixed(2)}s`,
+                    size: `${(wavBuffer.byteLength / 1024).toFixed(1)} KB`
                 });
 
-                // 2. ⭐ CONVERTIR A WAV
-                const wavBlob = await this.audioProcessor.convertToWAV(originalBlob);
-                
-                console.log('[Venzio] ✓ Convertido a WAV:', {
-                    size: `${(wavBlob.size / 1024).toFixed(1)} KB`,
-                    ratio: `${(wavBlob.size / originalBlob.size).toFixed(1)}x`
-                });
-
-                // 3. Enviar WAV al backend
-                const arrayBuffer = await wavBlob.arrayBuffer();
-                
+                // 2. Enviar WAV al backend
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    this.ws.send(arrayBuffer);
+                    this.ws.send(wavBuffer);
                     console.log('[Venzio] ✓ WAV enviado');
                     this._setStatus('Transcribiendo...');
                 } else {
@@ -685,12 +600,12 @@
                 }
 
             } catch (err) {
-                console.error('[Venzio] Error conversión/envío:', err);
+                console.error('[Venzio] Error codificación/envío:', err);
                 this._addMessage('error', '⚠️ Error procesando audio');
                 this._setState(STATES.LISTENING);
                 this._setStatus('Escuchando...');
             } finally {
-                this.currentRecordingChunks = [];
+                this.sampleBuffer = [];
             }
         }
 
@@ -739,7 +654,7 @@
     function init() {
         if (document.getElementById('vz-widget')) return;
         window.VenzioWidget = new VenzioWidget();
-        console.log('[Venzio] Widget v3.0 - WAV conversion enabled');
+        console.log('[Venzio] Widget v4.0 - Direct WAV recording enabled');
     }
 
     if (document.readyState === 'loading') {
