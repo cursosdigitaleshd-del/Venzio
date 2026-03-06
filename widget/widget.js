@@ -604,9 +604,13 @@
         }
 
         _sendPendingAudio() {
-            if (this.audioChunks.length === 0) return;
+            if (this.audioChunks.length === 0) {
+                console.warn('[Venzio] No audio chunks collected');
+                return;
+            }
 
-            const blob = new Blob(this.audioChunks, { type: this.mediaRecorder.mimeType });
+            console.log('[Venzio] Sending audio chunks:', this.audioChunks.length);
+
             const duration = Date.now() - this.recordingStartTime;
 
             if (duration < 300) {
@@ -616,11 +620,14 @@
                 return;
             }
 
-            blob.arrayBuffer().then(buf => {
-                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    this.ws.send(buf);
-                }
-            });
+            // Send chunks individually as expected by backend
+            for (const chunk of this.audioChunks) {
+                chunk.arrayBuffer().then(buf => {
+                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                        this.ws.send(buf);
+                    }
+                });
+            }
 
             this.audioChunks = [];
             this.recordingStartTime = null;
@@ -642,7 +649,7 @@
                 const rms = this._calculateRMS();
                 const db = 20 * Math.log10(rms || 0.0001);
                 this._processVAD(db);
-            }, 50); // Check every 100ms
+            }, 50); // Check every 50ms
         }
 
         _calculateRMS() {
@@ -750,6 +757,9 @@
         _onVoiceEnd() {
             console.log('[Venzio] Voz finalizada, cerrando segmento...');
 
+            // Send pending audio chunks first
+            this._sendPendingAudio();
+
             // Send audio_end metadata
             if (this.currentUtteranceId && this.ws && this.ws.readyState === WebSocket.OPEN) {
                 this.ws.send(JSON.stringify({
@@ -761,10 +771,6 @@
             this.silenceTimer = null;
             this.speakingStartTime = null;
             this.currentUtteranceId = null;
-
-            if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-                this.mediaRecorder.stop(); // 🔥 Esto genera WebM válido
-            }
 
             this._setState(STATES.PROCESSING);
             this._setStatus('Analizando...');
