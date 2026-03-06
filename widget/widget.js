@@ -1,8 +1,9 @@
 /**
- * Venzio Voice Widget v2.0 - Simplified
- * WebSocket + WebRTC Voice Sales Agent with VAD
- *
- * States: idle → connecting → listening → user_speaking → processing → ai_speaking
+ * Venzio Voice Widget v3.0 - WAV Conversion Edition
+ * Compatible con faster-whisper local + ffmpeg/pydub
+ * 
+ * SOLUCIÓN: Convierte WebM → WAV en browser antes de enviar
+ * Esto garantiza que ffmpeg/pydub siempre puedan procesar el audio
  */
 
 (function (window, document) {
@@ -14,17 +15,19 @@
         wsBase: 'wss://venzio.online',
         agentName: window.VENZIO_NAME || 'Agente Venzio',
         
-        // VAD Configuration - Simplificado
-        vadThreshold: -40,        // dB threshold
-        vadMinDuration: 300,      // ms mínimo de voz para iniciar
-        vadSilenceTimeout: 800,   // ms de silencio para cortar
-        vadMaxSpeakingTime: 20000, // ms máximo hablando
+        // VAD Configuration
+        vadThreshold: -40,
+        vadMinDuration: 300,
+        vadSilenceTimeout: 800,
+        vadMaxSpeakingTime: 20000,
         
-        recordingChunkSize: 100,  // ms por chunk
-        debugVAD: true,
+        // Audio Recording
+        recordingChunkSize: 100,
+        sampleRate: 16000,  // 16kHz óptimo para Whisper
+        
+        debug: true,
     };
 
-    // ── State Machine ────────────────────────────────────────────────────────────
     const STATES = {
         IDLE: 'idle',
         CONNECTING: 'connecting',
@@ -35,6 +38,120 @@
         ERROR: 'error',
     };
 
+    // ══════════════════════════════════════════════════════════════════════════
+    // WAV Encoder - Convierte Float32Array a WAV
+    // ══════════════════════════════════════════════════════════════════════════
+    class WAVEncoder {
+        constructor(sampleRate = 16000, numChannels = 1) {
+            this.sampleRate = sampleRate;
+            this.numChannels = numChannels;
+        }
+
+        /**
+         * Convierte samples Float32Array a WAV ArrayBuffer
+         */
+        encode(samples) {
+            const buffer = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buffer);
+
+            // WAV Header (44 bytes)
+            this._writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * 2, true);
+            this._writeString(view, 8, 'WAVE');
+            
+            // fmt chunk
+            this._writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);           // chunk size
+            view.setUint16(20, 1, true);            // PCM format
+            view.setUint16(22, this.numChannels, true);
+            view.setUint32(24, this.sampleRate, true);
+            view.setUint32(28, this.sampleRate * 2 * this.numChannels, true); // byte rate
+            view.setUint16(32, this.numChannels * 2, true); // block align
+            view.setUint16(34, 16, true);           // bits per sample
+            
+            // data chunk
+            this._writeString(view, 36, 'data');
+            view.setUint32(40, samples.length * 2, true);
+
+            // PCM samples (convert Float32 to Int16)
+            let offset = 44;
+            for (let i = 0; i < samples.length; i++, offset += 2) {
+                const s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+
+            return buffer;
+        }
+
+        _writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Audio Processor - Convierte WebM → WAV
+    // ══════════════════════════════════════════════════════════════════════════
+    class AudioProcessor {
+        constructor(sampleRate = 16000) {
+            this.sampleRate = sampleRate;
+            this.encoder = new WAVEncoder(sampleRate, 1); // Mono
+        }
+
+        /**
+         * Convierte Blob de audio (WebM/OGG) a WAV
+         */
+        async convertToWAV(audioBlob) {
+            try {
+                // 1. Decodificar audio a AudioBuffer
+                const arrayBuffer = await audioBlob.arrayBuffer();
+                
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: this.sampleRate
+                });
+                
+                const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                
+                // 2. Extraer samples (mono)
+                let samples;
+                if (audioBuffer.numberOfChannels === 1) {
+                    samples = audioBuffer.getChannelData(0);
+                } else {
+                    // Mezclar canales a mono
+                    const left = audioBuffer.getChannelData(0);
+                    const right = audioBuffer.getChannelData(1);
+                    samples = new Float32Array(left.length);
+                    for (let i = 0; i < left.length; i++) {
+                        samples[i] = (left[i] + right[i]) / 2;
+                    }
+                }
+                
+                // 3. Codificar a WAV
+                const wavBuffer = this.encoder.encode(samples);
+                
+                if (CONFIG.debug) {
+                    console.log('[AudioProcessor] Conversión:', {
+                        input: `${audioBlob.size} bytes (${audioBlob.type})`,
+                        output: `${wavBuffer.byteLength} bytes (WAV)`,
+                        duration: `${audioBuffer.duration.toFixed(2)}s`,
+                        sampleRate: `${audioBuffer.sampleRate}Hz`,
+                        channels: audioBuffer.numberOfChannels,
+                    });
+                }
+                
+                return new Blob([wavBuffer], { type: 'audio/wav' });
+                
+            } catch (err) {
+                console.error('[AudioProcessor] Error:', err);
+                throw err;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Widget Principal
+    // ══════════════════════════════════════════════════════════════════════════
     class VenzioWidget {
         constructor() {
             this.state = STATES.IDLE;
@@ -60,12 +177,16 @@
             // Recording buffer
             this.currentRecordingChunks = [];
             this.isRecording = false;
+            this.recordingFormat = null;
+
+            // Audio processor para conversión WAV
+            this.audioProcessor = new AudioProcessor(CONFIG.sampleRate);
 
             this._build();
             this._loadVoices();
         }
 
-        // ── DOM Construction ───────────────────────────────────────────────────────
+        // ── DOM Construction ───────────────────────────────────────────────────
         _build() {
             if (!document.getElementById('vz-styles')) {
                 const link = document.createElement('link');
@@ -79,9 +200,8 @@
             wrapper.className = 'vz-widget';
             wrapper.id = 'vz-widget';
             wrapper.innerHTML = `
-        <!-- Floating trigger button -->
         <button class="vz-trigger" id="vz-trigger" aria-label="Abrir agente de voz">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
             <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
             <line x1="12" y1="19" x2="12" y2="23"/>
@@ -89,9 +209,7 @@
           </svg>
         </button>
 
-        <!-- Chat Panel -->
-        <div class="vz-panel" id="vz-panel" role="dialog" aria-label="Agente de voz Venzio">
-          <!-- Header -->
+        <div class="vz-panel" id="vz-panel">
           <div class="vz-header">
             <div class="vz-header-avatar">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -105,7 +223,6 @@
             </div>
           </div>
 
-          <!-- Voice Selector -->
           <div class="vz-voice-selector" id="vz-voice-selector">
             <label for="vz-voice-select">Voz del agente</label>
             <select id="vz-voice-select">
@@ -113,22 +230,19 @@
             </select>
           </div>
 
-          <!-- Messages -->
           <div class="vz-messages" id="vz-messages">
             <div class="vz-msg agent">
               👋 ¡Hola! Soy tu agente de ventas virtual. Te escucho automáticamente.
             </div>
           </div>
 
-          <!-- Waveform Visualizer -->
           <div class="vz-visualizer" id="vz-visualizer">
             ${Array.from({ length: 10 }, () => '<div class="vz-bar"></div>').join('')}
           </div>
 
-          <!-- Controls -->
           <div class="vz-controls">
-            <button class="vz-mic-btn" id="vz-mic-btn" aria-label="Estado del micrófono" disabled>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button class="vz-mic-btn" id="vz-mic-btn" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
                 <line x1="12" y1="19" x2="12" y2="23"/>
@@ -145,7 +259,6 @@
 
             document.body.appendChild(wrapper);
 
-            // Cache elements
             this.$trigger = document.getElementById('vz-trigger');
             this.$panel = document.getElementById('vz-panel');
             this.$msgs = document.getElementById('vz-messages');
@@ -155,12 +268,10 @@
             this.$viz = document.getElementById('vz-visualizer');
             this.$voiceSel = document.getElementById('vz-voice-select');
 
-            // Events
             this.$trigger.addEventListener('click', () => this.togglePanel());
             this.$endBtn.addEventListener('click', () => this._endSession());
         }
 
-        // ── Load Voices ─────────────────────────────────────────────────────────────
         async _loadVoices() {
             try {
                 const res = await fetch(`${CONFIG.apiBase}/public/voices`);
@@ -183,12 +294,10 @@
                     this.selectedVoiceId = Number(sel.value);
                 });
             } catch (e) {
-                this.$voiceSel.innerHTML = '<option value="">Error cargando voces</option>';
-                console.warn('[Venzio] No se pudieron cargar las voces:', e);
+                console.warn('[Venzio] Error cargando voces:', e);
             }
         }
 
-        // ── Panel Toggle ───────────────────────────────────────────────────────────
         togglePanel() {
             this.isOpen = !this.isOpen;
             this.$panel.classList.toggle('open', this.isOpen);
@@ -198,10 +307,9 @@
             }
         }
 
-        // ── WebSocket Connection ───────────────────────────────────────────────────
         async _getTemporalToken() {
             const siteId = window.VENZIO_SITE_ID;
-            if (!siteId) throw new Error('[Venzio] window.VENZIO_SITE_ID no definido');
+            if (!siteId) throw new Error('VENZIO_SITE_ID no definido');
 
             const res = await fetch(
                 `${CONFIG.apiBase.replace('/api', '')}/widget/auth?site_id=${encodeURIComponent(siteId)}`
@@ -239,7 +347,6 @@
             } catch (e) {
                 this._setState(STATES.ERROR);
                 this._addMessage('error', `⚠️ ${e.message}`);
-                this._setStatus('Error de autenticación');
                 return;
             }
 
@@ -247,14 +354,13 @@
             this.ws = new WebSocket(wsUrl);
 
             this.ws.onopen = () => {
-                console.log('[Venzio] WebSocket connected');
+                console.log('[Venzio] WebSocket conectado');
                 this.sessionActive = true;
                 this._startListening();
             };
 
             this.ws.onmessage = async (event) => {
                 if (event.data instanceof Blob) {
-                    // Audio TTS response
                     await this._playAudio(event.data);
                 } else {
                     const msg = JSON.parse(event.data);
@@ -262,88 +368,63 @@
                 }
             };
 
-            this.ws.onerror = (err) => {
-                console.error('[Venzio] WebSocket error:', err);
+            this.ws.onerror = () => {
                 this._setState(STATES.ERROR);
                 this._addMessage('error', '⚠️ Error de conexión');
-                this._setStatus('Error de conexión');
             };
 
             this.ws.onclose = () => {
-                console.log('[Venzio] WebSocket closed');
                 if (this.sessionActive) {
                     this._addMessage('system', 'Sesión finalizada.');
                     this.sessionActive = false;
                 }
                 this._stopListening();
                 this._setState(STATES.IDLE);
-                this._setStatus('Desconectado');
             };
         }
 
-        // ── Server Message Handler ─────────────────────────────────────────────────
         _handleServerMessage(msg) {
-            console.log('[Venzio] Server message:', msg);
-            
             switch (msg.type) {
                 case 'session_ready':
                     this._addMessage('system', `🎙 Sesión iniciada — Voz: ${msg.voice}`);
                     break;
-                    
                 case 'partial_transcript':
                     if (this.state === STATES.USER_SPEAKING) {
                         this._setStatus(`📝 ${msg.text}`);
                     }
                     break;
-                    
                 case 'final_transcript':
-                    this._addMessage('user', msg.text);
-                    this._setState(STATES.PROCESSING);
-                    this._setStatus('Procesando...');
-                    break;
-                    
                 case 'transcript':
                     this._addMessage('user', msg.text);
                     this._setState(STATES.PROCESSING);
                     this._setStatus('Procesando...');
                     break;
-                    
                 case 'reply_text':
                     this._addMessage('agent', msg.text);
-                    // El audio viene separado como Blob
                     break;
-                    
                 case 'error':
                     this._addMessage('error', `⚠️ ${msg.message}`);
                     this._setState(STATES.LISTENING);
                     this._setStatus('Escuchando...');
                     break;
-                    
-                default:
-                    console.debug('[Venzio] Unknown message:', msg);
             }
         }
 
-        // ── Audio Playback ─────────────────────────────────────────────────────────
         async _playAudio(blob) {
-            // Stop VAD while AI is speaking
             this._pauseVAD();
-            
             this._setState(STATES.AI_SPEAKING);
             this._setStatus('🔊 Respondiendo...');
 
             try {
                 if (!this.audioCtx) {
-                    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    this.audioCtx = new AudioContext();
                 }
 
                 const arrayBuffer = await blob.arrayBuffer();
                 const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
-                
                 const source = this.audioCtx.createBufferSource();
                 source.buffer = audioBuffer;
                 source.connect(this.audioCtx.destination);
-                
                 this.currentAudioSource = source;
 
                 source.onended = () => {
@@ -356,13 +437,13 @@
                 source.start(0);
 
             } catch (err) {
-                console.error('[Venzio] Audio playback error:', err);
+                console.error('[Venzio] Error playback:', err);
                 this._setState(STATES.LISTENING);
                 this._resumeVAD();
             }
         }
 
-        // ── Listening & Recording ──────────────────────────────────────────────────
+        // ── Recording con MediaRecorder ────────────────────────────────────────
         async _startListening() {
             try {
                 this.audioStream = await navigator.mediaDevices.getUserMedia({
@@ -370,16 +451,17 @@
                         echoCancellation: true,
                         noiseSuppression: true,
                         autoGainControl: true,
-                        channelCount: 1
+                        channelCount: 1,
+                        sampleRate: CONFIG.sampleRate,
                     }
                 });
 
-                this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                this.audioCtx = new AudioContext({ sampleRate: CONFIG.sampleRate });
                 if (this.audioCtx.state === 'suspended') {
                     await this.audioCtx.resume();
                 }
 
-                // Setup analyzer for VAD
+                // Analyzer para VAD
                 this.analyser = this.audioCtx.createAnalyser();
                 this.analyser.fftSize = 2048;
                 this.analyser.smoothingTimeConstant = 0.5;
@@ -387,33 +469,51 @@
                 const source = this.audioCtx.createMediaStreamSource(this.audioStream);
                 source.connect(this.analyser);
 
-                // Setup MediaRecorder
+                // MediaRecorder - usa formato nativo del browser
+                const mimeType = this._getBestFormat();
+                this.recordingFormat = mimeType;
+                
+                console.log('[Venzio] MediaRecorder format:', mimeType);
+
                 this.mediaRecorder = new MediaRecorder(this.audioStream, {
-                    mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-                        ? 'audio/webm;codecs=opus'
-                        : 'audio/ogg'
+                    mimeType: mimeType,
+                    audioBitsPerSecond: 128000
                 });
 
                 this.mediaRecorder.ondataavailable = (e) => {
                     if (e.data.size > 0 && this.isRecording) {
                         this.currentRecordingChunks.push(e.data);
-                        console.log('[Venzio] Chunk captured:', e.data.size, 'bytes');
                     }
                 };
 
-                // Start recording continuously
                 this.mediaRecorder.start(CONFIG.recordingChunkSize);
-                console.log('[Venzio] MediaRecorder started');
 
                 this._setState(STATES.LISTENING);
                 this._setStatus('Escuchando...');
                 this._startVAD();
 
             } catch (err) {
-                console.error('[Venzio] Microphone access error:', err);
+                console.error('[Venzio] Error micrófono:', err);
                 this._addMessage('error', '⚠️ No se pudo acceder al micrófono');
                 this._setState(STATES.ERROR);
             }
+        }
+
+        _getBestFormat() {
+            const formats = [
+                'audio/webm;codecs=opus',
+                'audio/webm',
+                'audio/ogg;codecs=opus',
+                'audio/ogg',
+            ];
+
+            for (const fmt of formats) {
+                if (MediaRecorder.isTypeSupported(fmt)) {
+                    return fmt;
+                }
+            }
+
+            return ''; // Browser default
         }
 
         _stopListening() {
@@ -431,24 +531,19 @@
             this.currentRecordingChunks = [];
         }
 
-        // ── VAD (Voice Activity Detection) ────────────────────────────────────────
+        // ── VAD ────────────────────────────────────────────────────────────────
         _startVAD() {
-            console.log('[Venzio] VAD started');
             this.vadInterval = setInterval(() => {
                 const db = this._getVolumeDB();
                 this._processVAD(db);
-            }, 50); // Check every 50ms
+            }, 50);
         }
 
         _pauseVAD() {
-            if (this.vadInterval) {
-                clearInterval(this.vadInterval);
-                this.vadInterval = null;
-            }
-            if (this.silenceCheckInterval) {
-                clearInterval(this.silenceCheckInterval);
-                this.silenceCheckInterval = null;
-            }
+            if (this.vadInterval) clearInterval(this.vadInterval);
+            if (this.silenceCheckInterval) clearInterval(this.silenceCheckInterval);
+            this.vadInterval = null;
+            this.silenceCheckInterval = null;
         }
 
         _resumeVAD() {
@@ -466,26 +561,21 @@
         _getVolumeDB() {
             if (!this.analyser) return -100;
             
-            const bufferLength = this.analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
+            const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
             this.analyser.getByteFrequencyData(dataArray);
 
             let sum = 0;
-            for (let i = 0; i < bufferLength; i++) {
+            for (let i = 0; i < dataArray.length; i++) {
                 const amplitude = dataArray[i] / 255;
                 sum += amplitude * amplitude;
             }
             
-            const rms = Math.sqrt(sum / bufferLength);
+            const rms = Math.sqrt(sum / dataArray.length);
             return 20 * Math.log10(rms || 0.0001);
         }
 
         _processVAD(db) {
             const now = Date.now();
-            
-            if (CONFIG.debugVAD && Math.random() < 0.1) {
-                console.log('[VAD]', db.toFixed(1), 'dB | State:', this.state);
-            }
 
             // Voice detected
             if (db > CONFIG.vadThreshold) {
@@ -499,47 +589,42 @@
                     }
                 }
                 
-                // Clear silence checker
                 if (this.silenceCheckInterval) {
                     clearInterval(this.silenceCheckInterval);
                     this.silenceCheckInterval = null;
                 }
             } 
-            // Silence detected
+            // Silence
             else {
                 if (this.state === STATES.USER_SPEAKING && !this.silenceCheckInterval) {
-                    // Start checking for silence timeout
                     this.silenceCheckInterval = setInterval(() => {
-                        const silenceDuration = Date.now() - this.lastVoiceTime;
-                        if (silenceDuration > CONFIG.vadSilenceTimeout) {
+                        if (Date.now() - this.lastVoiceTime > CONFIG.vadSilenceTimeout) {
                             this._onVoiceEnd();
                         }
                     }, 100);
                 }
             }
 
-            // Max speaking time guard
+            // Max speaking time
             if (this.state === STATES.USER_SPEAKING && this.voiceDetectedTime) {
                 if (now - this.voiceDetectedTime > CONFIG.vadMaxSpeakingTime) {
-                    console.log('[Venzio] Max speaking time reached');
                     this._onVoiceEnd();
                 }
             }
         }
 
         _onVoiceStart() {
-            console.log('[Venzio] Voice START detected');
+            if (this.isRecording) return;
             
             this.isRecording = true;
             this.currentRecordingChunks = [];
-            
             this._setState(STATES.USER_SPEAKING);
             this._setStatus('🎤 Hablando...');
             this.$micBtn.classList.add('recording');
         }
 
         _onVoiceEnd() {
-            console.log('[Venzio] Voice END detected');
+            if (!this.isRecording) return;
             
             this.isRecording = false;
             this.voiceDetectedTime = null;
@@ -551,40 +636,57 @@
 
             this.$micBtn.classList.remove('recording');
             this._setState(STATES.PROCESSING);
-            this._setStatus('Enviando audio...');
+            this._setStatus('Convirtiendo audio...');
 
-            // Send collected audio
             this._sendRecordedAudio();
         }
 
+        // ── CONVERSIÓN A WAV Y ENVÍO ───────────────────────────────────────────
         async _sendRecordedAudio() {
             if (this.currentRecordingChunks.length === 0) {
-                console.warn('[Venzio] No audio chunks to send');
+                console.warn('[Venzio] No hay chunks para enviar');
                 this._setState(STATES.LISTENING);
                 this._setStatus('Escuchando...');
                 return;
             }
 
-            console.log('[Venzio] Sending', this.currentRecordingChunks.length, 'chunks');
-
             try {
-                const audioBlob = new Blob(this.currentRecordingChunks, { 
-                    type: this.mediaRecorder.mimeType 
-                });
+                // 1. Crear blob original (WebM/OGG)
+                const originalBlob = new Blob(
+                    this.currentRecordingChunks,
+                    { type: this.recordingFormat }
+                );
                 
-                const arrayBuffer = await audioBlob.arrayBuffer();
+                console.log('[Venzio] Audio original:', {
+                    format: originalBlob.type,
+                    size: `${(originalBlob.size / 1024).toFixed(1)} KB`,
+                    chunks: this.currentRecordingChunks.length
+                });
+
+                // 2. ⭐ CONVERTIR A WAV
+                const wavBlob = await this.audioProcessor.convertToWAV(originalBlob);
+                
+                console.log('[Venzio] ✓ Convertido a WAV:', {
+                    size: `${(wavBlob.size / 1024).toFixed(1)} KB`,
+                    ratio: `${(wavBlob.size / originalBlob.size).toFixed(1)}x`
+                });
+
+                // 3. Enviar WAV al backend
+                const arrayBuffer = await wavBlob.arrayBuffer();
                 
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                     this.ws.send(arrayBuffer);
-                    console.log('[Venzio] Audio sent:', arrayBuffer.byteLength, 'bytes');
+                    console.log('[Venzio] ✓ WAV enviado');
+                    this._setStatus('Transcribiendo...');
                 } else {
-                    console.error('[Venzio] WebSocket not open');
+                    console.error('[Venzio] WebSocket cerrado');
                     this._setState(STATES.LISTENING);
                     this._setStatus('Escuchando...');
                 }
 
             } catch (err) {
-                console.error('[Venzio] Error sending audio:', err);
+                console.error('[Venzio] Error conversión/envío:', err);
+                this._addMessage('error', '⚠️ Error procesando audio');
                 this._setState(STATES.LISTENING);
                 this._setStatus('Escuchando...');
             } finally {
@@ -592,10 +694,7 @@
             }
         }
 
-        // ── End Session ────────────────────────────────────────────────────────────
         _endSession() {
-            console.log('[Venzio] Ending session');
-            
             this._stopListening();
             
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -613,11 +712,8 @@
             this._setStatus('Sesión terminada');
         }
 
-        // ── Helpers ────────────────────────────────────────────────────────────────
         _setState(state) {
-            console.log('[Venzio] State:', this.state, '→', state);
             this.state = state;
-            
             const viz = this.$viz;
             viz.className = 'vz-visualizer';
             if (state === STATES.LISTENING) viz.classList.add('listening');
@@ -639,11 +735,11 @@
         }
     }
 
-    // ── Auto-init ────────────────────────────────────────────────────────────────
+    // ── Auto-init ──────────────────────────────────────────────────────────────
     function init() {
         if (document.getElementById('vz-widget')) return;
         window.VenzioWidget = new VenzioWidget();
-        console.log('[Venzio] Widget initialized');
+        console.log('[Venzio] Widget v3.0 - WAV conversion enabled');
     }
 
     if (document.readyState === 'loading') {
