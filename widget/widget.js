@@ -22,6 +22,8 @@ const STATES = {
 
 class VenzioWidget {
     constructor(options = {}) {
+        console.log('[Venzio][DEBUG] widget constructor called');
+
         // Validar parámetros requeridos
         if (!options.siteId || !options.voiceId || !options.token) {
             throw new Error('siteId, voiceId y token son requeridos');
@@ -72,14 +74,19 @@ class VenzioWidget {
 
         // VAD
         this.vad.onVoiceStart = () => {
+            console.log('[Venzio][DEBUG] VAD voice start detected');
+            console.log('[Venzio][DEBUG] current state:', this.state);
+
             // Barge-in: interrupt playback if user speaks while agent is talking
             if (this.state === STATES.PLAYING) {
                 // Anti-echo protection: ignore voice detection within 150ms of playback start
                 if (this.playingStartedAt && (Date.now() - this.playingStartedAt) < 150) {
+                    console.log('[Venzio][DEBUG] voice ignored (anti-echo protection)');
                     return;
                 }
 
-                console.log('[Widget] Barge-in detected - interrupting playback');
+                console.log('[Venzio][DEBUG] barge-in triggered');
+                console.log('[Venzio][DEBUG] stopping player');
                 this.player.stop();
                 this.recorder.startRecording();
                 this._setState(STATES.RECORDING);
@@ -178,6 +185,8 @@ class VenzioWidget {
 
     // ── UI Management ────────────────────────────────────────────────────────
     _buildUI() {
+        console.log('[Venzio][DEBUG] building UI');
+
         // Load CSS
         if (!document.getElementById('vz-styles')) {
             const link = document.createElement('link');

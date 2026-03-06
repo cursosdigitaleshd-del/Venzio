@@ -15,6 +15,8 @@ class AudioCapture {
     }
 
     async start() {
+        console.log('[Venzio][DEBUG] starting audio capture');
+
         if (this.isCapturing) return;
 
         try {

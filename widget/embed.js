@@ -6,6 +6,8 @@
 (function() {
     'use strict';
 
+    console.log('[Venzio][DEBUG] embed loader start');
+
     // Evitar inicialización múltiple
     if (window.VenzioWidgetInstance) {
         console.warn('[Venzio] Widget ya inicializado');
@@ -23,6 +25,9 @@
     const siteId = script.getAttribute('data-site-id');
     const agentName = script.getAttribute('data-name') || 'Agente Venzio';
 
+    console.log('[Venzio][DEBUG] siteId:', siteId);
+    console.log('[Venzio][DEBUG] agentName:', agentName);
+
     if (!siteId) {
         console.error('[Venzio] data-site-id es requerido');
         return;
@@ -31,6 +36,8 @@
     // Determinar URL base del API desde la URL del script
     const scriptUrl = new URL(script.src);
     const apiBase = `${scriptUrl.protocol}//${scriptUrl.host}`;
+
+    console.log('[Venzio][DEBUG] apiBase:', apiBase);
 
 
 
@@ -67,19 +74,35 @@
             }
 
             const authData = await authResponse.json();
+            console.log('[Venzio][DEBUG] auth response:', authData);
             console.log('[Venzio] Autenticación exitosa');
 
             // 2. Cargar CSS
             await loadCSS(`${apiBase}/widget/widget.css`);
             console.log('[Venzio] CSS cargado');
 
-            // 3. Cargar widget.js usando dynamic import
-            const module = await import(`${apiBase}/widget/widget.js`);
-            const VenzioWidget = module.VenzioWidget;
+            // 3. Cargar widget.js como script clásico
+            console.log('[Venzio][DEBUG] loading widget script');
+            const script = document.createElement("script");
+            script.src = `${apiBase}/widget/widget.js`;
+            script.defer = true;
+            document.body.appendChild(script);
+
+            // 4. Esperar que VenzioWidget esté disponible en window
+            let attempts = 0;
+            while (!window.VenzioWidget && attempts < 50) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            if (!window.VenzioWidget) {
+                throw new Error('VenzioWidget no se cargó correctamente');
+            }
+
             console.log('[Venzio] Widget.js cargado');
 
-            // 4. Instanciar el widget
-            const widget = new VenzioWidget({
+            // 5. Instanciar el widget
+            const widget = new window.VenzioWidget({
                 apiBase: `${apiBase}/api`,
                 siteId: siteId,
                 voiceId: authData.voice_id,
