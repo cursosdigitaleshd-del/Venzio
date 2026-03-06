@@ -17,7 +17,7 @@
         // VAD Configuration
         vadThreshold: -40,        // dB threshold — menos sensible al ruido de fondo
         vadMinDuration: 200,      // ms para confirmar que es voz real (evita clics / tos)
-        vadSilenceTimeout: 600,   // ms de silencio antes de cortar (más natural)
+        vadSilenceTimeout: 400,   // ms de silencio antes de cortar (más natural)
         vadLongSilence: 10000,    // ms largo silencio para intervención IA
         vadInactivityTimeout: 30000, // ms inactividad total para cerrar sesión
         vadMaxSpeakingTime: 15000, // ms máx de habla continua antes de forzar envío
@@ -64,10 +64,6 @@
             this.inactivityTimer = null;
             this.speakingStartTime = null;
             this.lastVoiceTime = null;
-
-            // Utterance tracking
-            this.currentUtteranceId = null;
-            this.currentRecordingChunks = [];
 
             this._build();
             this._loadVoices();
@@ -527,15 +523,31 @@
                 });
 
                 this.mediaRecorder.ondataavailable = (e) => {
-                    if (!e.data || e.data.size === 0) return;
-
-                    // guardar SIEMPRE
-                    this.currentRecordingChunks.push(e.data);
-                    console.log('[Venzio] Chunk captured:', e.data.size, 'bytes');
+                    if (e.data.size > 0) {
+                        this.audioChunks.push(e.data);
+                    }
                 };
 
                 this.mediaRecorder.onstop = async () => {
-                    await this._sendRecordedAudio();
+                    if (this.audioChunks.length === 0) return;
+
+                    const blob = new Blob(this.audioChunks, { type: this.mediaRecorder.mimeType });
+
+                    console.log('[Venzio] Final blob size:', blob.size);
+
+                    if (blob.size < 1000) {
+                        console.warn('[Venzio] Blob demasiado pequeño, ignorado');
+                        this.audioChunks = [];
+                    } else {
+                        const buffer = await blob.arrayBuffer();
+
+                        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                            this.ws.send(buffer);
+                            console.log('[Venzio] Audio enviado correctamente');
+                        }
+                    }
+
+                    this.audioChunks = [];
 
                     // 🔥 Reiniciar grabación solo si sigue activa la sesión
                     if (this.sessionActive) {
@@ -636,23 +648,9 @@
         }
 
         _onVoiceStart() {
-            console.log('[Venzio] Voice START detected');
-
-            this.currentUtteranceId = Date.now().toString();
-
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                this.ws.send(JSON.stringify({
-                    type: "audio_start",
-                    id: this.currentUtteranceId
-                }));
-            }
-
-            // Limpiar buffer ANTES de empezar a grabar
-            this.currentRecordingChunks = [];
-            this.isRecording = true;
-
+            console.log('[Venzio] Voice detected, starting recording...');
             this._setState(STATES.USER_SPEAKING);
-            this._setStatus('🎤 Hablando...');
+            this._setStatus('Hablando...');
             this._resetInactivityTimer();
         }
 
@@ -662,46 +660,12 @@
             this.silenceTimer = null;
             this.speakingStartTime = null;
 
-            if (this.currentRecordingChunks.length === 0) {
-                console.warn("[Venzio] No audio captured");
-                this._setState(STATES.LISTENING);
-                return;
-            }
-
             if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
                 this.mediaRecorder.stop(); // 🔥 Esto genera WebM válido
             }
 
             this._setState(STATES.PROCESSING);
             this._setStatus('Analizando...');
-        }
-
-        async _sendRecordedAudio() {
-            if (this.currentRecordingChunks.length === 0) {
-                console.warn("[Venzio] No audio chunks captured");
-                this._setState(STATES.LISTENING);
-                return;
-            }
-
-            console.log("chunks:", this.currentRecordingChunks.length);
-
-            for (const chunk of this.currentRecordingChunks) {
-                const buf = await chunk.arrayBuffer();
-
-                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    this.ws.send(buf);
-                }
-            }
-
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                this.ws.send(JSON.stringify({
-                    type: "audio_end",
-                    id: this.currentUtteranceId
-                }));
-            }
-
-            this.currentRecordingChunks = [];
-            this.currentUtteranceId = null;
         }
 
         _interruptAI() {

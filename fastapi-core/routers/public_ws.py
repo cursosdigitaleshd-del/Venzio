@@ -232,10 +232,17 @@ async def public_voice_session(
 
             # Audio bytes
             elif "bytes" in message:
-                if not current_utterance_id:
-                    continue  # Protección contra audio sin start
-
                 chunk = message["bytes"]
+
+                # Compatibilidad con widget v1.0 (blob único)
+                if not current_utterance_id:
+                    current_utterance_id = secrets.token_hex(8)
+                    current_audio_buffer[current_utterance_id] = []
+                    utterance_partials[current_utterance_id] = ""
+                    stream_buffer = b""
+                    current_audio_size = 0
+                    utterance_start = time.time()
+                    last_audio_time = time.time()
                 last_audio_time = time.time()
 
                 # Verificar límites de memoria
@@ -248,6 +255,54 @@ async def public_voice_session(
                     continue
 
                 current_audio_buffer[current_utterance_id].append(chunk)
+
+                # Compatibilidad widget v1.0: procesar blob único inmediatamente
+                if len(current_audio_buffer[current_utterance_id]) == 1 and len(chunk) > 1000:
+                    # Procesar blob único sin esperar audio_end
+                    audio_bytes = chunk
+                    print(f"Procesando blob único: {len(audio_bytes)} bytes, ID: {current_utterance_id}")
+
+                    try:
+                        final_text = await stt_client.transcribe(audio_bytes)
+
+                        await websocket.send_text(json.dumps({
+                            "type": "final_transcript",
+                            "text": final_text,
+                            "id": current_utterance_id
+                        }))
+
+                        # Procesar respuesta
+                        if final_text:
+                            full_transcript_parts.append(f"Usuario: {final_text}")
+                            conversation_history.append({"role": "user", "content": final_text})
+
+                            system_prompt = llm.build_system_prompt(master_prompt)
+                            reply_text = await llm.chat_completion(
+                                conversation_history,
+                                system_prompt=system_prompt,
+                            )
+                            conversation_history.append({"role": "assistant", "content": reply_text})
+                            full_transcript_parts.append(f"Agente: {reply_text}")
+
+                            await websocket.send_text(
+                                json.dumps({"type": "reply_text", "text": reply_text})
+                            )
+
+                            # TTS
+                            audio_response = await tts_client.synthesize(reply_text, voice.model_file)
+                            await websocket.send_bytes(audio_response)
+
+                    except Exception as e:
+                        print(f"Error procesando blob único: {e}")
+
+                    # Cleanup
+                    del current_audio_buffer[current_utterance_id]
+                    del utterance_partials[current_utterance_id]
+                    current_utterance_id = None
+                    current_audio_size = 0
+                    utterance_start = None
+                    last_audio_time = None
+                    continue
 
                 # Buffer para streaming
                 stream_buffer += chunk
