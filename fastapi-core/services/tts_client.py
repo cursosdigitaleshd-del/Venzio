@@ -3,19 +3,20 @@ from loguru import logger
 from config import settings
 
 
-async def synthesize(text: str, voice_model_file: str) -> bytes:
+async def synthesize(text: str, voice_model: str | None = None) -> bytes:
     """
     Envía texto al microservicio TTS y devuelve los bytes de audio WAV.
     Args:
         text: texto a sintetizar
-        voice_model_file: nombre del archivo .onnx de la voz a usar
+        voice_model: nombre del archivo .onnx de la voz a usar
     Returns:
         bytes de audio WAV
     """
+    voice = voice_model or settings.default_voice
     url = f"{settings.tts_service_url}/synthesize"
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
-            params = {"text": text, "voice": voice_model_file}
+            params = {"text": text, "voice": voice}
             response = await client.get(url, params=params)
             response.raise_for_status()
             logger.debug(f"TTS sintetizó {len(response.content)} bytes para: '{text[:60]}...'")
