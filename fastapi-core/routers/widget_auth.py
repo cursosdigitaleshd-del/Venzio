@@ -51,7 +51,15 @@ async def widget_auth(site_id: str, request: Request, db: Session = Depends(get_
         else:
             host = None
 
-        if not host or not host.endswith(site.domain_allowed):
+        if not host:
+            raise HTTPException(status_code=401, detail="Domain not allowed")
+
+        allowed = (
+            host.endswith(site.domain_allowed)
+            or host.endswith("venzio.online")
+        )
+
+        if not allowed:
             raise HTTPException(status_code=401, detail="Domain not allowed")
 
     # 3. Obtener usuario
