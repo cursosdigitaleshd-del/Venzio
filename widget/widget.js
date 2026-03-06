@@ -120,6 +120,7 @@
             // Recording
             this.isRecordingVoice = false;
             this.sampleBuffer = [];
+            this.audioSentForCurrentSpeech = false;
 
             // WAV encoder
             this.wavEncoder = new WAVEncoder(CONFIG.sampleRate, 1);
@@ -542,6 +543,7 @@
         _onVoiceStart() {
             if (this.isRecordingVoice) return;
 
+            this.audioSentForCurrentSpeech = false;
             this.isRecordingVoice = true;
             this.sampleBuffer = [];
             this._setState(STATES.USER_SPEAKING);
@@ -569,35 +571,38 @@
 
         // ── ENVÍO DE AUDIO WAV ──────────────────────────────────────────────────
         async _sendRecordedAudio() {
+            if (this.audioSentForCurrentSpeech) {
+                console.log('[Venzio] Audio ya enviado para esta frase');
+                return;
+            }
+
+            this.audioSentForCurrentSpeech = true;
+
             if (this.sampleBuffer.length === 0) {
-                console.warn('[Venzio] No hay samples para enviar');
                 this._setState(STATES.LISTENING);
                 this._setStatus('Escuchando...');
                 return;
             }
 
-            // Check mínimo duración (400ms a 16kHz = 6400 samples)
             const minSamples = CONFIG.sampleRate * 0.4;
+
             if (this.sampleBuffer.length < minSamples) {
-                console.warn('[Venzio] Audio muy corto, descartando');
+                console.log('[Venzio] Audio muy corto, descartando');
+                this.sampleBuffer.length = 0;
                 this._setState(STATES.LISTENING);
                 this._setStatus('Escuchando...');
-                this.sampleBuffer = [];
                 return;
             }
 
             try {
-                // 1. Codificar samples acumulados a WAV
                 const samples = new Float32Array(this.sampleBuffer);
                 const wavBuffer = this.wavEncoder.encode(samples);
 
                 console.log('[Venzio] WAV generado:', {
                     samples: samples.length,
-                    duration: `${(samples.length / CONFIG.sampleRate).toFixed(2)}s`,
-                    size: `${(wavBuffer.byteLength / 1024).toFixed(1)} KB`
+                    duration: (samples.length / CONFIG.sampleRate).toFixed(2)
                 });
 
-                // 2. Enviar WAV al backend
                 if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                     this.ws.send(wavBuffer);
                     console.log('[Venzio] ✓ WAV enviado');
@@ -609,7 +614,7 @@
                 }
 
             } catch (err) {
-                console.error('[Venzio] Error codificación/envío:', err);
+                console.error('[Venzio] Error enviando audio:', err);
                 this._addMessage('error', '⚠️ Error procesando audio');
                 this._setState(STATES.LISTENING);
                 this._setStatus('Escuchando...');
