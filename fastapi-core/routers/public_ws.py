@@ -126,37 +126,39 @@ async def public_voice_session(
         # ── Loop principal ─────────────────────────────────────────────────────
         while True:
             try:
+                # Recibir mensaje (puede ser texto o binario)
                 message = await websocket.receive()
+
+                # ── Manejo de comandos de texto ────────────────────────────────────
+                if "text" in message:
+                    try:
+                        data = json.loads(message["text"])
+
+                        if data.get("type") == "end_session":
+                            print(f"[WebSocket] end_session recibido")
+                            break
+
+                        # Ignorar otros comandos por ahora
+                        print(f"[WebSocket] Comando recibido: {data.get('type')}")
+
+                    except json.JSONDecodeError:
+                        print(f"[WebSocket] JSON inválido recibido")
+
+                    continue
+
+                # ── Procesamiento de audio binario ──────────────────────────────
+                audio_bytes = message.get("bytes")
+                if not audio_bytes:
+                    continue
+
+                print(f"[WebSocket] Audio recibido: {len(audio_bytes)} bytes")
+
             except WebSocketDisconnect:
                 print(f"[WebSocket] Cliente desconectado: {session_token}")
                 break
             except Exception as e:
                 print(f"[WebSocket] Error recibiendo mensaje: {e}")
                 break
-
-            # ── Manejo de comandos de texto ────────────────────────────────────
-            if "text" in message:
-                try:
-                    data = json.loads(message["text"])
-                    
-                    if data.get("type") == "end_session":
-                        print(f"[WebSocket] end_session recibido")
-                        break
-                        
-                    # Ignorar otros comandos por ahora
-                    print(f"[WebSocket] Comando recibido: {data.get('type')}")
-                    
-                except json.JSONDecodeError:
-                    print(f"[WebSocket] JSON inválido recibido")
-                    
-                continue
-
-            # ── Procesamiento de audio ─────────────────────────────────────────
-            audio_bytes = message.get("bytes")
-            if not audio_bytes:
-                continue
-
-            print(f"[WebSocket] Audio recibido: {len(audio_bytes)} bytes")
 
             try:
                 # ── 1. Transcripción (STT) ─────────────────────────────────────
