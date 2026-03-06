@@ -72,11 +72,25 @@ class VenzioWidget {
 
         // VAD
         this.vad.onVoiceStart = () => {
+            // Barge-in: interrupt playback if user speaks while agent is talking
+            if (this.state === STATES.PLAYING) {
+                // Anti-echo protection: ignore voice detection within 150ms of playback start
+                if (this.playingStartedAt && (Date.now() - this.playingStartedAt) < 150) {
+                    return;
+                }
+
+                console.log('[Widget] Barge-in detected - interrupting playback');
+                this.player.stop();
+                this.recorder.startRecording();
+                this._setState(STATES.RECORDING);
+                return;
+            }
+
+            // Normal voice start when listening
             if (this.state === STATES.LISTENING) {
                 this.recorder.startRecording();
                 this._setState(STATES.RECORDING);
             }
-            // Note: VOICE_START in PLAYING is detected but no interruption yet
         };
 
         this.vad.onVoiceEnd = () => {
@@ -111,6 +125,7 @@ class VenzioWidget {
         };
 
         this.wsClient.onAudio = (audioBuffer) => {
+            this.playingStartedAt = Date.now();
             this.player.play(audioBuffer);
             this._setState(STATES.PLAYING);
         };

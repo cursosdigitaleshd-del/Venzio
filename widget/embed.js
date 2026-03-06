@@ -32,17 +32,7 @@
     const scriptUrl = new URL(script.src);
     const apiBase = `${scriptUrl.protocol}//${scriptUrl.host}`;
 
-    // Función para cargar script dinámicamente
-    function loadScript(src) {
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.type = 'module';
-            script.src = src;
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
-    }
+
 
     // Función para cargar CSS dinámicamente
     function loadCSS(href) {
@@ -83,23 +73,13 @@
             await loadCSS(`${apiBase}/widget/widget.css`);
             console.log('[Venzio] CSS cargado');
 
-            // 3. Cargar widget.js
-            await loadScript(`${apiBase}/widget/widget.js`);
+            // 3. Cargar widget.js usando dynamic import
+            const module = await import(`${apiBase}/widget/widget.js`);
+            const VenzioWidget = module.VenzioWidget;
             console.log('[Venzio] Widget.js cargado');
 
-            // 4. Esperar a que VenzioWidget esté disponible
-            let attempts = 0;
-            while (!window.VenzioWidget && attempts < 50) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                attempts++;
-            }
-
-            if (!window.VenzioWidget) {
-                throw new Error('VenzioWidget no se cargó correctamente');
-            }
-
-            // 5. Instanciar el widget
-            const widget = new window.VenzioWidget({
+            // 4. Instanciar el widget
+            const widget = new VenzioWidget({
                 apiBase: `${apiBase}/api`,
                 siteId: siteId,
                 voiceId: authData.voice_id,
