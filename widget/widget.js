@@ -398,7 +398,9 @@
                     }
                 });
 
-                this.audioCtx = new AudioContext({ sampleRate: CONFIG.sampleRate });
+                if (!this.audioCtx) {
+                    this.audioCtx = new AudioContext({ sampleRate: CONFIG.sampleRate });
+                }
                 if (this.audioCtx.state === 'suspended') {
                     await this.audioCtx.resume();
                 }
@@ -414,14 +416,21 @@
                 const source = this.audioCtx.createMediaStreamSource(this.audioStream);
                 source.connect(this.analyser);
                 source.connect(this.processor);
-                this.processor.connect(this.audioCtx.destination);
+
+                // GainNode silencioso para mantener processor activo sin audio
+                const silentGain = this.audioCtx.createGain();
+                silentGain.gain.value = 0;
+                this.processor.connect(silentGain);
+                silentGain.connect(this.audioCtx.destination);
 
                 this.processor.onaudioprocess = (event) => {
                     const samples = event.inputBuffer.getChannelData(0);
 
                     // Acumular samples si está grabando voz
                     if (this.isRecordingVoice) {
-                        this.sampleBuffer.push(...samples);
+                        for (let i = 0; i < samples.length; i++) {
+                            this.sampleBuffer.push(samples[i]);
+                        }
                     }
                 };
 
@@ -605,7 +614,7 @@
                 this._setState(STATES.LISTENING);
                 this._setStatus('Escuchando...');
             } finally {
-                this.sampleBuffer = [];
+                this.sampleBuffer.length = 0;
             }
         }
 
