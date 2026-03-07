@@ -100,7 +100,7 @@
                 throw new Error('VenzioWidget no se cargó correctamente');
             }
 
-            console.log('[Venzio] Widget.js cargado');
+            console.log('[Venzio] Widget bundle cargado');
 
             // 5. Instanciar el widget
             const widget = new window.VenzioWidget({
