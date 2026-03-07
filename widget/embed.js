@@ -84,8 +84,8 @@
             // 3. Cargar widget.js como script clásico
             console.log('[Venzio][DEBUG] loading widget script');
             const script = document.createElement("script");
+            script.type = "module";   // ← ESTA ES LA CLAVE
             script.src = `${apiBase}/widget/widget.js`;
-            script.defer = true;
             document.body.appendChild(script);
 
             // 4. Esperar que VenzioWidget esté disponible en window
