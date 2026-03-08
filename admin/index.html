@@ -1302,7 +1302,14 @@
             <td style="display:flex;gap:8px;align-items:center;">
               <button class="btn-sm primary" onclick="openEditUserModal(${u.id}, '${u.email}', '${u.full_name || ''}', '${u.phone || ''}', '${u.company_name || ''}', '${u.website || ''}')">✏️ Editar</button>
               <button class="btn-sm primary" onclick="openPaymentModal(${u.id}, '${u.email}')">💳 Pago</button>
-              <button class="btn-sm success" onclick="openPromptModal(${u.id}, '${u.email}', ${JSON.stringify(u.master_prompt || '')})">📝 Prompt</button>              <button class="btn-sm ${u.is_active ? 'danger' : 'success'}" onclick="toggleUser(${u.id})">${u.is_active ? 'Desactivar' : 'Activar'}</button>
+              <button class="btn-sm success" 
+                data-id="${u.id}" 
+                data-email="${u.email}" 
+                data-prompt="${encodeURIComponent(u.master_prompt || '')}" 
+                onclick="openPromptModal(this)">
+                📝 Prompt
+              </button>             
+              <button class="btn-sm ${u.is_active ? 'danger' : 'success'}" onclick="toggleUser(${u.id})">${u.is_active ? 'Desactivar' : 'Activar'}</button>
             </td>
           </tr>`).join('')}
         </tbody></table>`;
@@ -1455,14 +1462,19 @@
             document.getElementById('modal-payment').dataset.userId = userId;
         }
 
-        function openPromptModal(userId, userEmail, currentPrompt) {
+        function openPromptModal(btn) {
+            const userId = btn.dataset.id;
+            const userEmail = btn.dataset.email;
+            const currentPrompt = decodeURIComponent(btn.dataset.prompt);
+
             document.getElementById('ep-user').value = userEmail;
             document.getElementById('prompt-modal-title').textContent = `Editar Prompt Maestro - ${userEmail}`;
             document.getElementById('ep-prompt').value = currentPrompt;
             document.getElementById('modal-edit-prompt').classList.add('open');
+
             // Store userId for later
             document.getElementById('modal-edit-prompt').dataset.userId = userId;
-            // Focus on textarea
+
             setTimeout(() => document.getElementById('ep-prompt').focus(), 100);
         }
 
