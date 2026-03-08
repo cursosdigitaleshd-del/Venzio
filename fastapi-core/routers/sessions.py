@@ -159,11 +159,13 @@ async def voice_session(
 
                 # 2. LLM – Respuesta
                 conversation_history.append({"role": "user", "content": user_text})
+                conversation_history = conversation_history[-10:]
                 reply_text = await llm.chat_completion(
-                    user_message=user_text,
+                    messages=conversation_history,
                     master_prompt=master_prompt
                 )
                 conversation_history.append({"role": "assistant", "content": reply_text})
+                conversation_history = conversation_history[-10:]
                 full_transcript_parts.append(f"Agente: {reply_text}")
 
                 await websocket.send_text(

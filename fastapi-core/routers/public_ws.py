@@ -106,13 +106,6 @@ async def public_voice_session(
     # ── Estado de la conversación ──────────────────────────────────────────────
     conversation_history: list[dict] = []
     full_transcript_parts: list[str] = []
-    
-    # Agregar master_prompt si existe
-    if master_prompt:
-        conversation_history.append({
-            "role": "system",
-            "content": master_prompt
-        })
 
     try:
         # Confirmar sesión lista
@@ -191,8 +184,8 @@ async def public_voice_session(
                     "content": user_text
                 })
 
-                # Limitar historial a los últimos 6 mensajes
-                conversation_history = conversation_history[-6:]
+                # Limitar historial a los últimos 10 mensajes
+                conversation_history = conversation_history[-10:]
 
                 reply_text = await llm.chat_completion(
                     messages=conversation_history,
