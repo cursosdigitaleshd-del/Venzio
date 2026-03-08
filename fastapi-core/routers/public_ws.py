@@ -44,7 +44,7 @@ async def public_voice_session(
     if token:
         try:
             payload = decode_token(token)
-            user_id = payload.get("sub")
+            user_id = payload.get("uid") or payload.get("sub")
             if user_id:
                 user = db.get(User, int(user_id))
                 if user and user.is_active:
