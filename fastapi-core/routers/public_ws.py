@@ -55,6 +55,7 @@ async def public_voice_session(
                     if has_active_subscription or user.is_admin:
                         master_prompt = user.master_prompt
                         print(f"[WebSocket] Usuario autenticado: {user.email}")
+                        print(f"[WebSocket] master_prompt loaded: '{master_prompt}' (len: {len(master_prompt) if master_prompt else 0})")
                     else:
                         await websocket.send_text(json.dumps({
                             "type": "error",

@@ -46,6 +46,10 @@ async def chat_completion(
     """
     system_prompt = build_system_prompt(master_prompt)
 
+    # Logging para verificar que master_prompt llega correctamente
+    logger.info(f"MASTER_PROMPT: '{master_prompt}'")
+    logger.info(f"SYSTEM_PROMPT: '{system_prompt[:300]}...'")
+
     full_messages = [
         {"role": "system", "content": system_prompt},
     ] + messages
