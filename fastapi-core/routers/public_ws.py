@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import asyncio
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from auth import decode_token
@@ -54,6 +55,8 @@ async def public_voice_session(
                     )
                     if has_active_subscription or user.is_admin:
                         master_prompt = user.master_prompt
+                        logger.info(f"USER_EMAIL: {user.email}")
+                        logger.info(f"MASTER_PROMPT: {user.master_prompt}")
                         print(f"[WebSocket] Usuario autenticado: {user.email}")
                         print(f"[WebSocket] master_prompt loaded: '{master_prompt}' (len: {len(master_prompt) if master_prompt else 0})")
                     else:
