@@ -1,0 +1,212 @@
+Voice Sales Agent SaaS – Implementation Plan
+Plataforma SaaS de agente vendedor por voz. El usuario habla con el widget, el audio se transcribe (STT), se procesa con GPT-4o mini (LLM), y la respuesta se sintetiza a audio (TTS) y se devuelve al usuario en tiempo real. Todo orquestado por un core FastAPI con WebSockets, con servicios independientes contenerizados.
+
+Decisiones de diseño confirmadas
+Tema	Decisión
+Idioma STT	Español (es) forzado en faster-whisper
+Voces TTS	Tabla Voice en DB; inicio con 1 voz (es_ES-davefx-medium); admin puede agregar más
+Admin Panel	Dashboard HTML con login propio (JWT), sin Streamlit
+Estructura de carpetas en c:\Venzio
+c:\Venzio\
+├── docker-compose.yml
+├── .env.example
+├── nginx/
+│   └── nginx.conf
+├── fastapi-core/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── main.py
+│   ├── config.py
+│   ├── database.py
+│   ├── models.py
+│   ├── auth.py
+│   ├── concurrency.py
+│   ├── alembic.ini
+│   ├── alembic/
+│   │   ├── env.py
+│   │   └── versions/
+│   ├── routers/
+│   │   ├── auth.py
+│   │   ├── sessions.py
+│   │   ├── admin.py
+│   │   ├── plans.py
+│   │   └── webhook.py
+│   └── services/
+│       ├── llm.py
+│       ├── stt_client.py
+│       └── tts_client.py
+├── stt-service/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── main.py
+│   └── transcriber.py
+├── tts-service/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── main.py
+│   └── synthesizer.py
+└── widget/
+    ├── index.html
+    ├── widget.js
+    ├── widget.css
+    └── embed.js
+Proposed Changes
+Root
+[NEW] docker-compose.yml
+Define tres servicios: fastapi-core, stt-service, tts-service. Comparte red interna venzio-net. Variables de entorno desde .env.
+
+[NEW] .env.example
+Plantilla con todas las variables requeridas:
+
+OPENAI_API_KEY=
+STT_SERVICE_URL=http://stt-service:8001
+TTS_SERVICE_URL=http://tts-service:8002
+DATABASE_URL=sqlite:///./venzio.db
+MAX_GLOBAL_SESSIONS=10
+SECRET_KEY=changeme
+[NEW] nginx/nginx.conf
+Reverse proxy para los servicios, con CORS y rate limiting básico.
+
+FastAPI Core (fastapi-core/)
+[NEW] main.py
+Crea la FastAPI app con lifespan (init DB, init session concurrency)
+Incluye todos los routers
+Configura CORS con orígenes permitidos
+Exception handlers globales
+[NEW] config.py
+Settings con pydantic_settings leyendo desde .env
+Exporta instancia settings
+[NEW] database.py
+SQLAlchemy create_engine con DATABASE_URL
+SessionLocal factory
+Base declarativa
+get_db() dependency
+[NEW] models.py
+ORM Models:
+
+User (id, email, hashed_password, plan_id, created_at, is_active, is_admin)
+Plan (id, name, max_sessions, max_minutes, price)
+Voice (id, name, language, model_file, is_active) — voces disponibles para TTS
+VoiceSession (id, user_id, voice_id, started_at, ended_at, transcript, status)
+UsageLog (id, user_id, date, minutes_used, sessions_count)
+[NEW] auth.py
+hash_password, verify_password con passlib/bcrypt
+create_access_token, decode_token con python-jose
+get_current_user dependency
+[NEW] concurrency.py
+SessionManager con asyncio.Lock
+Diccionario en memoria active_sessions: dict
+Métodos: acquire(user_id), release(user_id), count()
+[NEW] routers/auth.py
+POST /auth/register
+POST /auth/token (login, devuelve JWT)
+GET /auth/me
+[NEW] routers/sessions.py
+WS /ws/voice/{session_id} – Orquesta el flujo: recibe audio bytes → llama STT → llama GPT → llama TTS → envía audio bytes al cliente
+[NEW] routers/admin.py
+GET /admin/users
+GET /admin/stats (sesiones activas, uso total)
+PUT /admin/users/{id}/plan
+GET /admin/voices – lista todas las voces
+POST /admin/voices – agregar nueva voz
+PUT /admin/voices/{id} – activar/desactivar voz
+DELETE /admin/voices/{id} – eliminar voz
+[NEW] routers/voices.py (público)
+GET /voices – lista voces activas (para el widget)
+[NEW] routers/plans.py
+GET /plans – Lista planes disponibles
+POST /plans – Crear plan (admin)
+[NEW] routers/webhook.py
+POST /webhook/whatsapp – Recibe resumen de conversación y hace POST al webhook de n8n
+[NEW] services/llm.py
+async def chat_completion(messages, max_tokens, temperature) usando openai SDK
+Manejo de timeout y errores
+[NEW] services/stt_client.py
+async def transcribe(audio_bytes) -> str
+HTTP POST a STT_SERVICE_URL/transcribe
+[NEW] services/tts_client.py
+async def synthesize(text) -> bytes
+HTTP GET streaming a TTS_SERVICE_URL/synthesize
+[NEW] alembic/ setup
+alembic init completo con env.py apuntando a los modelos
+[NEW] requirements.txt
+fastapi, uvicorn, sqlalchemy, alembic, passlib[bcrypt], python-jose[cryptography], 
+pydantic-settings, python-dotenv, openai, httpx, loguru
+STT Microservice (stt-service/)
+[NEW] main.py
+FastAPI en puerto 8001
+POST /transcribe recibe multipart audio, devuelve {"text": "..."}
+GET /health
+[NEW] transcriber.py
+WhisperTranscriber con faster-whisper
+Modelo base por defecto (configurable por env WHISPER_MODEL)
+Idioma forzado a es (español)
+Carga el modelo una vez al inicio (singleton)
+[NEW] requirements.txt
+fastapi, uvicorn, faster-whisper, python-multipart, loguru
+TTS Microservice (tts-service/)
+[NEW] main.py
+FastAPI en puerto 8002
+GET /synthesize?text=... devuelve audio WAV en StreamingResponse
+GET /health
+[NEW] synthesizer.py
+PiperSynthesizer wrapping subprocess de piper
+Devuelve bytes de audio WAV
+[NEW] requirements.txt
+fastapi, uvicorn, loguru
+Frontend Widget (widget/)
+[NEW] widget.js
+Estado: idle → listening → processing → speaking
+WebRTC: getUserMedia para captura de micrófono
+MediaRecorder para chunked audio
+WebSocket hacia WS /ws/voice/{session_id}
+Al iniciar, carga voces desde GET /voices y muestra selector al usuario
+Reproduce el audio recibido con AudioContext
+Animación CSS según estado
+[NEW] widget.css
+Botón flotante circular con animación pulse
+Ondas de audio animadas
+Compatible dark/light mode
+[NEW] index.html
+Página demo para testear el widget localmente
+[NEW] embed.js
+Script de una línea para incrustar en WordPress o cualquier web:
+html
+<script src="https://tu-dominio.com/widget/embed.js" data-api="wss://tu-dominio.com"></script>
+Admin Dashboard (admin/)
+[NEW] admin/index.html
+Login page con JWT (llama a POST /auth/token)
+Dashboard con tabs: Usuarios, Planes, Voces, Estadísticas
+Tab Voces: tabla de voces activas/inactivas + form para agregar nueva voz (nombre, idioma, archivo modelo)
+Usa Fetch API + localStorage para token
+Diseño moderno dark mode
+Verification Plan
+Automated / Structural
+Verify folder structure exists:
+
+powershell
+Get-ChildItem -Recurse c:\Venzio -Name
+Verify Docker Compose is valid:
+
+powershell
+docker compose -f c:\Venzio\docker-compose.yml config
+Verify Python syntax on all .py files:
+
+powershell
+Get-ChildItem -Recurse c:\Venzio -Filter *.py | ForEach-Object { python -c "import ast; ast.parse(open('$($_.FullName)').read()); print('OK: $($_.FullName)')" }
+Manual Verification
+Open c:\Venzio\widget\index.html in a browser to see the voice widget UI
+Review c:\Venzio\docker-compose.yml to confirm all services are defined
+Review c:\Venzio\.env.example to confirm all required variables are present
+Review c:\Venzio\fastapi-core\routers/sessions.py to validate the STT→LLM→TTS WebSocket pipeline
+IMPORTANT
+
+Este plan genera el scaffold completo del proyecto listo para ejecutar localmente con docker compose up. No se ejecutará código en producción. El usuario deberá instalar Docker Desktop para levantar los servicios.
+
+NOTE
+
+El modelo Whisper base de faster-whisper es suficiente para desarrollo. En producción se puede cambiar a small o medium via variable de entorno WHISPER_MODEL.
+
+WARNING
+
+Para TTS con Piper, el binario de piper debe estar instalado en el contenedor. El Dockerfile del tts-service descargará el binario oficial de GitHub releases durante el build.
